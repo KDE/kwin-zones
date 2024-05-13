@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="ext_zones_v1">
+
+  <copyright>
+    Copyright © 2023-2024 Matthias Klumpp
+    Copyright ©      2024 Victoria Brekenfeld
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice (including the next
+    paragraph) shall be included in all copies or substantial portions of the
+    Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+  </copyright>
+
+  <description summary="protocol to manage client-specific zones and place windows within them">
+    This protocol provides a way for clients to create and add windows
+    to "zones".
+
+    A zone is a isolated environment with its own coordinate space where
+    clients can add and arrange windows that logically belong to each other.
+    It provides means for, among other things, requesting that windows are
+    placed at specific coordinates within the zone coordinate space.
+    See the description of "ext_zone_v1" for more details.
+
+    This document adheres to RFC 2119 when using words like "must",
+    "should", "may", etc.
+
+    Warning! The protocol described in this file is currently in the testing
+    phase. Backward compatible changes may be added together with the
+    corresponding interface version bump. Backward incompatible changes can
+    only be done by creating a new major version of the extension.
+  </description>
+
+  <interface name="ext_zone_window_v1" version="1">
+    <description summary="opaque window object that can be positioned">
+      The zone window object is an opaque descriptor for a positionable
+      window.
+      It currently can only be created from a 'xdg_toplevel' via a
+      'get_zone_window' request.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="delete this object">
+        Destroys the zone window. This request may be sent at any time by the
+        client.
+        By destroying the object, the respective window remains at its
+        last position, but its association with any zone is lost.
+        This will also cause it to loose any attached state, like the its
+        layer index.
+      </description>
+    </request>
+  </interface>
+
+  <interface name="ext_zone_manager_v1" version="1">
+    <description summary="manage zones for applications">
+      The ext_zone_manager interface defines base requests for obtaining and
+      managing zones for a client.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="Destroy this object">
+       This has no effect other than to destroy the ext_zone_manager object.
+      </description>
+    </request>
+
+    <request name="get_zone_window">
+      <description summary="create a positionable window from a toplevel">
+	Create a new positionable zone window from an xdg_toplevel.
+        The resulting wrapper object can then be used to position the
+        toplevel window in a zone.
+      </description>
+      <arg name="id" type="new_id" interface="ext_zone_window_v1"/>
+      <arg name="toplevel" type="object" interface="xdg_toplevel" summary="the toplevel window"/>
+    </request>
+
+    <request name="get_zone">
+      <description summary="join a zone or request a new one">
+	Create a new zone object, or obtain a zone corresponding to
+        the given zone handle string. While the zone object exists,
+        the compositor must consider it "used" and keep track of it.
+
+	A zone that is currently in use is represented by a string
+        'handle'. A zone may potentially have been created by a
+        different client.
+        A handle of an existing zone is passed as 'handle' argument.
+        If NULL is passed, a new zone is created by the compositor.
+        Otherwise, the respective zone corresponding to the given handle
+        string is returned.
+        If the zone handle was invalid or unknown, a new zone must
+        be created and returned instead.
+
+        The compositor must keep zone handles valid while any client is
+        using the corresponding zone and has windows associated with it.
+        The compositor may always give a client the same zone and
+        remember its position and size for the client, but clients should
+        not rely on this behavior.
+
+        A client can request a zone to be placed on a specific
+        output by passing a wl_output as 'output'. If a valid output
+        is set, the compositor should place the zone on that output.
+        If NULL is passed, the compositor decides the output.
+        If a valid 'handle' is passed, the value of 'output' should be
+        ignored.
+
+        The client is expected to place its windows in the available space
+        the compositor provides for the zone as best as it can.
+        The compositor should provide the biggest reasonable space for the
+        client, governed by its own policy.
+      </description>
+      <arg name="id" type="new_id" interface="ext_zone_v1"/>
+      <arg name="output" type="object" interface="wl_output"
+           summary="the preferred output to place the zone on, or NULL"
+	   allow-null="true"/>
+      <arg name="handle" type="string" summary="the zone handle or NULL"
+	   allow-null="true"/>
+    </request>
+  </interface>
+
+  <interface name="ext_zone_v1" version="1">
+    <description summary="output area for a client to query and set window placement">
+      An 'ext_zone' describes a display area provided by the compositor in
+      which a client can place windows and move them around.
+
+      A zone's area could for example correspond to the space usable for
+      placing windows on a specific output (space without panels or other
+      restricted elements) or it could be an area of the output the compositor
+      has specifically chosen for a client to place its windows in.
+
+      A compositor may visually distinguish what makes up a zone, for example
+      by adding a frame around it and/or a background.
+
+      The compositor must ensure all the windows associated with a zone
+      are contained within it, and should resize the zone accordingly
+      if the user moves windows out of the zone's original bounds.
+
+      A window is considered "in bounds" if its top-left coordinate is within
+      the zone's coordinate system. The remaining parts of the window may
+      overlap the zone bounds.
+
+      If a window is moved out of a zone's bounds by the user or compositor in
+      a way where the compositor cannot resize the zone accordingly, the
+      compositor must force it to leave the respective zone (emitting a
+      'window_left' event).
+
+      All window placement coordinates (x, y) are relative to the selected zone.
+      They are using the 'size' of the respective zone as coordinate system,
+      with (0, 0) being in the top left corner.
+
+      The absolute position of the zone within the compositor is opaque to the
+      client and the compositor may move the entore zone around without the
+      client's notice. It may also be arbitrarily resized, in which case the
+      respective 'size' event must be emitted again to notify the client.
+
+      Windows are allowed to have a "layer" attribute, to keep them permanently
+      above or below other windows in the same zone.
+      Using layers, clients can overlay their own windows permanently, but not
+      the ones of other clients not sharing a zone.
+
+      Upon creation the compositor must emit 'size' and 'handle' events for the
+      newly created 'ext_zone', followed by 'done'.
+    </description>
+
+    <enum name="error">
+      <entry name="invalid" summary="a passed value has been invalid"
+	     value="1"/>
+      <entry name="association_exists" summary="a window is already associated with a different zone"
+	     value="2"/>
+    </enum>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the ext_zone object">
+	Using this request a client can tell the compositor that it is not
+	going to use the ext_zone object anymore.
+        The zone itself must only be destroyed if no other client
+        is using it anymore, so this request may only destroy the object
+        reference owned by the client.
+      </description>
+    </request>
+
+    <event name="size">
+      <description summary="size of the zone">
+	The 'size' event describes the size of this zone.
+
+        It is a rectangle with its origin in the top-left corner, using
+        the surface coordinate space (device pixels divided by the scaling
+        factor of the output this zone is attached to).
+
+        If a width or height value is zero, the zone is infinite
+        in that direction.
+
+        The 'size' event is sent immediately after creating an 'ext_zone_v1',
+	and whenever the size of the zone changes. A zone can change at any
+	time, for any reason, for example output size or scaling changes,
+        or by compositor policy.
+
+        Upon subsequent emissions of 'size' after 'ext_zone_v1' had already
+        been created, the 'done' event does not have to be sent again.
+      </description>
+      <arg name="width" type="int"
+	   summary="zone width in logical pixels"/>
+      <arg name="height" type="int"
+	   summary="zone height in logical pixels"/>
+    </event>
+
+    <event name="handle">
+      <description summary="the zone handle">
+	The handle event provides the unique handle of this zone.
+        The handle may be shared with any client, which then can use it to
+	join this client's zone by calling
+        ext_zone_manager.get_zone.
+      </description>
+      <arg name="handle" type="string" summary="the exported zone handle"/>
+    </event>
+
+    <event name="done">
+      <description summary="all information about the zone have been sent">
+	This event is sent after all other properties (size, handle) of an
+        ext_zone have been sent.
+
+	This allows changes to the ext_zone properties to be seen as
+	atomic, even if they happen via multiple events.
+      </description>
+    </event>
+
+    <request name="add_window">
+      <description summary="associate a window with this zone">
+        Make 'window' a member of this zone.
+        This state is double-buffered and is applied on the next
+        wl_surface.commit of the surface represented by 'window'.
+
+        This request associates a window with this zone.
+        If this request is called on a window that already has a zone
+        association with a different zone, an 'association_exists' error
+        must be raised.
+
+        Upon receiving this request, a compositor must emit 'window_entered'
+        to confirm the zone association. It must even emit this event if the
+        window was already associated with this zone before.
+
+        The compositor must move the window into the boundary of this zone
+        upon receiving this request (either by extending the zone size, or by
+        moving the window).
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+    </request>
+
+    <request name="remove_window">
+      <description summary="disassociate a window from this zone">
+        Remove 'window' as a member of this zone.
+        This state is double-buffered and is applied on the next
+        wl_surface.commit of the surface represented by 'window'.
+
+        This request removes the window from this zone explicitly,
+        making the client unable to retrieve coordinates again.
+
+        Upon receiving this request, the compositor should not change the
+        window's position on screen, and must emit 'window_left' to confirm
+        the window's removal. It must even emit this event if the
+        window was never associated with this zone.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+    </request>
+
+    <event name="window_entered">
+      <description summary="notify about a window having joined this zone">
+        This event notifies the client of a window joining a zone.
+
+        It is emitted as a response to 'add_window' or if the compositor
+        automatically had the window (re)join an existing zone.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window that has joined the zone"/>
+    </event>
+
+    <event name="window_left">
+      <description summary="notify about a window having left this zone">
+        This event notifies the client of a window leaving this zone, and
+        therefore the client being unable to retrieve its coordinates in
+        future.
+        If the client still wishes to adjust the window's coordinates, it may
+        associate the window with a zone again by calling 'add_window',
+        potentially causing the zone boundaries to change.
+
+        This event is emitted for example if the user moved a window out of a
+        smaller zone's boundaries, or onto a different screen where the previous
+        zone can not expand to. It is also emitted in response to explicitly
+        removing a window via 'remove_window'.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window that has left the zone"/>
+    </event>
+
+    <request name="set_position">
+      <description summary="set a preferred window position">
+        Request a preferred position (x, y) for the specified window
+        to be placed at relative to this zone.
+        This state is double-buffered and is applied on the next
+        wl_surface.commit of the surface represented by 'window'.
+
+        If the window is not yet associated with a zone, or not associated
+        with this zone, this request must be discarded and a 'position_unknown'
+        event must be emitted instead of the 'position' event that is sent on
+        success.
+
+        X and Y coordinates are relative to this zone, and should not be larger
+        than the dimensions set by the zone size, or smaller than zero.
+        If any coordinate is negative, and 'invalid' error must be raised.
+        If a coordinate exceeds the zone's bounds, the compositor should sanitize
+        it to more appropriate values (e.g. by clamping the values to the maximum
+        size). For infinite zones, the client may pick any coordinate.
+
+        Compositors implementing this protocol should try to place a window
+        at the preferred coordinates relative to the zone, unless doing
+        so is not allowed by compositor policy because e.g. the user has set
+        custom rules for the respective window, the window overlaps with a
+        protected shell component, session management has loaded previous
+        window positions or the placement request would send the window
+        out of bounds.
+
+        Clients should be aware that their placement preferences might not
+        always be followed and must be prepared to handle the case where the
+        window is placed at a different position by the compositor.
+        The compositor makes the ultimate final placement decision, but should
+        take the client's preferences into account.
+
+        Once a window has been mapped, a change to its placement preferences
+        can still be requested and should be applied, but must not be followed
+        by the compositor if the user is interacting with the affected window
+        (e.g. clicking &amp; dragging within the window, or resizing it).
+
+        After a call to this request, a 'position' event must be emitted with the
+        window's new actual position.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+      <arg name="x" type="int" summary="x position relative to zone"/>
+      <arg name="y" type="int" summary="y position relative to zone"/>
+    </request>
+
+    <request name="get_position">
+      <description summary="request the current position of the window">
+        Request the position (x, y) of the window, relative to this zone.
+
+        If 'window' was not associated with this zone prior to calling
+        this request, a 'position_unknown' event must be emitted.
+        Otherwise, the compositor must respond with a 'position' event
+        containing the requested information.
+
+        If many 'get_position' requests are emitted for a window, the
+        compositor may still only respond with one 'position' event,
+        containing the latest position of the window.
+
+        Clients should be aware that the returned position is subject
+        to the compositor's window management policies and user settings,
+        and may not follow any previously set placement preference.
+        The returned position may also not reflect the window's current
+        position, as it could have been moved inbetween issueing the request
+        and receiving its result.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+    </request>
+
+    <event name="position">
+      <description summary="notify about the current window position">
+        This event notifies the client of the current position (x, y) of
+        the window relative to this zone.
+        Coordinates are relative to the zone the window belongs to, and only
+        valid within it.
+
+        The event is only sent in response to a 'get_position' request.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window this position belongs to"/>
+      <arg name="x" type="int" summary="current x position relative to zone"/>
+      <arg name="y" type="int" summary="current y position relative to zone"/>
+    </event>
+
+    <event name="position_unknown">
+      <description summary="a get_position request has failed and the window position is not known">
+        The compositor was unable to determine the position of the respective
+        window. This could have happened because a request to 'get_position'
+        was made using a zone that the 'window' does not belong to, or if it
+        left its zone after a 'get_position' request was made.
+
+        This is usually a transient error and the client may attempt a
+        'get_position' request again after verifying the window's state.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window this event belongs to"/>
+    </event>
+
+    <request name="set_layer">
+      <description summary="permanently pin a window to a relative z-order">
+        Request a preferred permanent Z position for the specified
+        window relative to other windows in this zone.
+        This state is double-buffered and is applied on the next
+        wl_surface.commit of the surface represented by 'window'.
+
+        This function associates a "layer index" with the respective
+        window, with all windows assumed to be positioned at a layer with
+        index 0 by default.
+        Windows that are positioned in a layer with a higher index permanently
+        float above windows with a lower index. Windows with a lower layer
+        index sink below windows with a higher index.
+
+        Upon user interaction, sunken windows are not raised on top of windows
+        in a layer with an index higher than theirs, and floating windows do
+        not sink below windows in a lower layer, even if these windows are
+        selected.
+
+        Windows with the same layer index are subject to compositor policy,
+        which usually means they will obey user interaction and raise above or
+        sink below each other depending on which window is currently activated.
+
+        The layer index only affects the stacking order of windows within the
+        same zone. The compositor is allowed to move windows of one zone
+        (or no zone) above or below any window in a different zone, regardless
+        of their zone-specific layer index.
+
+        Compositors without support for stacking windows or with other conflicting
+        policy may ignore this request.
+      </description>
+      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+      <arg name="layer_index" type="int" summary="the window layer position"/>
+    </request>
+
+  </interface>
+
+</protocol>
