@@ -44,7 +44,7 @@ class ExtZoneV1Interface : public QObject, public QtWaylandServer::ext_zone_v1
 public:
     ExtZoneV1Interface(OutputInterface *output, const QString &handle)
         : m_output(output->handle())
-        , m_handle(handle)
+        , m_handle(handle.isEmpty() ? m_output->name() : handle)
     {
     }
 
@@ -60,35 +60,44 @@ public:
     {
         ExtZoneWindowV1Interface *zoneWindow = ExtZoneWindowV1Interface::get(window);
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
+            qDebug() << "e" << zoneWindow->m_zone;
             send_position_unknown(resource->handle, window);
             return;
         }
 
-        auto zoneGeometry = m_output->geometry();
         auto w = effects->findWindow(zoneWindow->m_toplevel->surface());
         if (!w) {
+            qDebug() << "Could not find window" << zoneWindow->m_toplevel << zoneWindow << zoneWindow->m_toplevel->surface();
             send_position_unknown(resource->handle, window);
             return;
         }
+        const auto zoneGeometry = effects->clientArea(ScreenArea, m_output, effects->currentDesktop());
         const QPointF pos = w->frameGeometry().topLeft() - zoneGeometry.topLeft();
         send_position(resource->handle, pos.x(), pos.y());
     }
     void ext_zone_v1_set_position(Resource *resource, struct ::wl_resource *window, int32_t x, int32_t y) override
     {
         ExtZoneWindowV1Interface *zoneWindow = ExtZoneWindowV1Interface::get(window);
+        if (!zoneWindow) {
+            // Can happen when shutting down
+            return;
+        }
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
+            qDebug() << "different zone" << zoneWindow->m_zone << this;
             send_position_unknown(resource->handle, window);
             return;
         }
 
-        auto zoneGeometry = m_output->geometry();
         auto w = waylandServer()->findWindow(zoneWindow->m_toplevel->surface());
         if (!w) {
+            qDebug() << "Could nt find surface" << zoneWindow->m_toplevel;
             send_position_unknown(resource->handle, window);
             return;
         }
-        const QPoint pos = QPoint(x, y) + zoneGeometry.topLeft();
-        if (!m_output->geometry().contains(pos)) {
+        const auto zoneGeometry = effects->clientArea(ScreenArea, m_output, effects->currentDesktop());
+        const QPointF pos = QPointF(x, y) + zoneGeometry.topLeft();
+        if (!zoneGeometry.contains(pos)) {
+            qDebug() << "could not position toplevel" << m_output->geometry() << pos << zoneGeometry;
             send_position_unknown(resource->handle, window);
             return;
         }
@@ -97,12 +106,14 @@ public:
     void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *window, int32_t layer_index) override {
         ExtZoneWindowV1Interface *zoneWindow = ExtZoneWindowV1Interface::get(window);
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
+            qDebug() << "c" << zoneWindow->m_zone;
             send_position_unknown(resource->handle, window);
             return;
         }
 
         auto w = waylandServer()->findWindow(zoneWindow->m_toplevel->surface());
         if (!w) {
+            qDebug() << "d" << zoneWindow;
             send_position_unknown(resource->handle, window);
             return;
         }
@@ -115,7 +126,7 @@ public:
     }
     void ext_zone_v1_add_window(Resource *resource, struct ::wl_resource *window) override {
         auto w = ExtZoneWindowV1Interface::get(window);
-        if (w->m_zone != this) {
+        if (w->m_zone && w->m_zone != this) {
             w->m_zone->send_window_left(resource->handle, window);
         }
         w->m_zone = this;
@@ -140,7 +151,8 @@ public:
     ExtZoneManagerV1Interface(Display *display, QObject *parent)
         : QObject(parent)
         , ext_zone_manager_v1(*display, s_version)
-    {}
+    {
+    }
 
     void ext_zone_manager_v1_destroy(Resource *resource) override {
         wl_resource_destroy(resource->handle);
@@ -157,7 +169,7 @@ public:
         auto it = m_zoneWindows.constFind(toplevel);
         if (it == m_zoneWindows.constEnd()) {
             auto zoneWindow = new ExtZoneWindowV1Interface(toplevel);
-            m_zoneWindows.insert(toplevel,  zoneWindow);
+            it = m_zoneWindows.insert(toplevel,  zoneWindow);
             connect(toplevel, &XdgToplevelInterface::aboutToBeDestroyed, zoneWindow, [this, toplevel] {
                 auto zoneWindow = m_zoneWindows.take(toplevel);
                 delete zoneWindow;

@@ -18,12 +18,19 @@ ecm_setup_qtplugin_macro_names(
         PACKAGE_SETUP_KWINEFFECTS_AUTOMOC_VARIABLES
 )
 
-add_library(kwin_zones)
-target_sources(kwin_zones PRIVATE main.cpp zones.cpp)
+add_library(kwin_effect_zones)
+target_sources(kwin_effect_zones PRIVATE main.cpp zones.cpp)
 
-ecm_add_qtwayland_server_protocol(kwin_zones
+ecm_add_qtwayland_server_protocol(kwin_effect_zones
     PROTOCOL ext-zones-v1.xml
     BASENAME ext-zones-v1
 )
 
-target_link_libraries(kwin_zones KWin::kwin)
+target_link_libraries(kwin_effect_zones KWin::kwin)
+install(
+    TARGETS
+        kwin_effect_zones
+
+    DESTINATION
+        ${KDE_INSTALL_PLUGINDIR}/kwin/effects/plugins/
+)

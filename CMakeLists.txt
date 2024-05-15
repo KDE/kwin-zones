@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(kwin-logging VERSION 0.1)
+project(kwin-zones VERSION 0.1)
 
 set(QT_MIN_VERSION "6.4")
 set(KF_MIN_VERSION "6.0")
@@ -16,12 +16,16 @@ include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 include(ECMQtDeclareLoggingCategory)
+include(ECMQmlModule)
 
 find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     Core
     Gui
     Widgets
+    WaylandClient
 )
+find_package(WaylandProtocols REQUIRED)
+find_package(Wayland 1.3 REQUIRED COMPONENTS Client)
 
 add_definitions(-DQT_NO_KEYWORDS)
 
@@ -32,5 +36,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(KWin 6.0 REQUIRED)
 
 add_subdirectory(src)
+add_subdirectory(test)
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
