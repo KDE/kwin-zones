@@ -57,7 +57,7 @@
         Destroys the zone window. This request may be sent at any time by the
         client.
         By destroying the object, the respective window remains at its
-        last position, but its association with any zone is lost.
+        last position, but its association with its zone is lost.
         This will also cause it to loose any attached state, like the its
         layer index.
       </description>
@@ -88,19 +88,10 @@
 
     <request name="get_zone">
       <description summary="join a zone or request a new one">
-	Create a new zone object, or obtain a zone corresponding to
-        the given zone handle string. While the zone object exists,
-        the compositor must consider it "used" and keep track of it.
+	Create a new zone. While the zone object exists, the compositor
+        must consider it "used" and keep track of it.
 
-	A zone that is currently in use is represented by a string
-        'handle'. A zone may potentially have been created by a
-        different client.
-        A handle of an existing zone is passed as 'handle' argument.
-        If NULL is passed, a new zone is created by the compositor.
-        Otherwise, the respective zone corresponding to the given handle
-        string is returned.
-        If the zone handle was invalid or unknown, a new zone must
-        be created and returned instead.
+	A zone is represented by a string 'handle'.
 
         The compositor must keep zone handles valid while any client is
         using the corresponding zone and has windows associated with it.
@@ -112,8 +103,6 @@
         output by passing a wl_output as 'output'. If a valid output
         is set, the compositor should place the zone on that output.
         If NULL is passed, the compositor decides the output.
-        If a valid 'handle' is passed, the value of 'output' should be
-        ignored.
 
         The client is expected to place its windows in the available space
         the compositor provides for the zone as best as it can.
@@ -124,8 +113,33 @@
       <arg name="output" type="object" interface="wl_output"
            summary="the preferred output to place the zone on, or NULL"
 	   allow-null="true"/>
-      <arg name="handle" type="string" summary="the zone handle or NULL"
-	   allow-null="true"/>
+    </request>
+
+    <request name="get_zone_from_handle">
+      <description summary="join a zone via its handle">
+	Create a new zone object using the zone's handle.
+        For the returned zone, the same rules as described in
+        'get_zone' apply.
+
+        This requests returns a reference to an existing or remembered zone
+        that is represented by 'handle'.
+        The zone may potentially have been created by a different client.
+
+        This allows cooperating clients to share the same coordinate space,
+        but prevents other clients from learning window positions of unrelated
+        clients.
+
+        If the zone handle was invalid or unknown, a new zone must
+        be created and returned instead, following the rules outlined
+        in 'get_zone' and assuming no output preference.
+
+        Every new zone object created by this request emits its initial event
+        sequence, including the 'handle' event, which my return a different
+        handle from the one passed to this request in case the existing zone
+        could not be joined.
+      </description>
+      <arg name="id" type="new_id" interface="ext_zone_v1"/>
+      <arg name="handle" type="string" summary="the handle of a zone"/>
     </request>
   </interface>
 
@@ -176,8 +190,6 @@
     <enum name="error">
       <entry name="invalid" summary="a passed value has been invalid"
 	     value="1"/>
-      <entry name="association_exists" summary="a window is already associated with a different zone"
-	     value="2"/>
     </enum>
 
     <request name="destroy" type="destructor">
@@ -243,8 +255,9 @@
 
         This request associates a window with this zone.
         If this request is called on a window that already has a zone
-        association with a different zone, an 'association_exists' error
-        must be raised.
+        association with a different zone, the window must leave its old zone
+        (with 'window_left' being emitted on its old zone) and will instead
+        be associated with this zone.
 
         Upon receiving this request, a compositor must emit 'window_entered'
         to confirm the zone association. It must even emit this event if the
@@ -309,7 +322,7 @@
         wl_surface.commit of the surface represented by 'window'.
 
         If the window is not yet associated with a zone, or not associated
-        with this zone, this request must be discarded and a 'position_unknown'
+        with this zone, this request must be discarded and a 'position_failed'
         event must be emitted instead of the 'position' event that is sent on
         success.
 
@@ -352,7 +365,7 @@
         Request the position (x, y) of the window, relative to this zone.
 
         If 'window' was not associated with this zone prior to calling
-        this request, a 'position_unknown' event must be emitted.
+        this request, a 'position_failed' event must be emitted.
         Otherwise, the compositor must respond with a 'position' event
         containing the requested information.
 
@@ -384,12 +397,14 @@
       <arg name="y" type="int" summary="current y position relative to zone"/>
     </event>
 
-    <event name="position_unknown">
-      <description summary="a get_position request has failed and the window position is not known">
+    <event name="position_failed">
+      <description summary="a get/set position request has failed">
         The compositor was unable to determine the position of the respective
-        window. This could have happened because a request to 'get_position'
-        was made using a zone that the 'window' does not belong to, or if it
-        left its zone after a 'get_position' request was made.
+        window, or could not set the position of the window.
+
+        This could have happened because a request to 'get_position' was made
+        using a zone that the 'window' does not belong to, or if it left its
+        zone after a 'get_position' request was made.
 
         This is usually a transient error and the client may attempt a
         'get_position' request again after verifying the window's state.
