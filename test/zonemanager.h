@@ -59,7 +59,7 @@ private:
         auto www = dynamic_cast<ZoneWindow *>(QtWayland::ext_zone_window_v1::fromObject(window));
         www->updatePosition(this, {x, y});
     }
-    void ext_zone_v1_position_unknown(struct ::ext_zone_window_v1 *window) override;
+    void ext_zone_v1_position_failed(struct ::ext_zone_window_v1 *window) override;
 
     QSize m_size;
     QString m_handle;

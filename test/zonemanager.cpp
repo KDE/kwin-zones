@@ -28,9 +28,9 @@ ZoneZone::ZoneZone(::ext_zone_v1* zone)
 {
 }
 
-void ZoneZone::ext_zone_v1_position_unknown(ext_zone_window_v1* window)
+void ZoneZone::ext_zone_v1_position_failed(ext_zone_window_v1* window)
 {
-    qDebug() << "unknown position for window" << window;
+    qDebug() << "failed to position window" << window;
 }
 
 void ZoneWindow::updatePosition(ZoneZone* zone, const QPoint& position)

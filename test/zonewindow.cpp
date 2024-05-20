@@ -78,7 +78,7 @@ ZoneZone* ZoneWindowAttached::zone()
 {
     if (!m_zone) {
         auto output = (::wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", m_window->window()->screen());
-        m_zone = new ZoneZone(s_manager->get_zone(output, ""));
+        m_zone = new ZoneZone(s_manager->get_zone(output));
     }
     return m_zone;
 }

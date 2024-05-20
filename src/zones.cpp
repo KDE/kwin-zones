@@ -42,15 +42,16 @@ public:
 class ExtZoneV1Interface : public QObject, public QtWaylandServer::ext_zone_v1
 {
 public:
-    ExtZoneV1Interface(OutputInterface *output, const QString &handle)
-        : m_output(output->handle())
-        , m_handle(handle.isEmpty() ? m_output->name() : handle)
+    ExtZoneV1Interface(const QRect &area, const QString &handle)
+        : m_area(area)
+        , m_handle(handle)
     {
+        Q_ASSERT(!m_handle.isEmpty());
     }
 
     void ext_zone_v1_bind_resource(Resource * resource) override
     {
-        const QSize size = m_output->geometry().size();
+        const QSizeF size = m_area.size();
         send_size(resource->handle, size.width(), size.height());
         send_handle(resource->handle, m_handle);
         send_done(resource->handle);
@@ -61,18 +62,17 @@ public:
         ExtZoneWindowV1Interface *zoneWindow = ExtZoneWindowV1Interface::get(window);
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
             qDebug() << "e" << zoneWindow->m_zone;
-            send_position_unknown(resource->handle, window);
+            send_position_failed(resource->handle, window);
             return;
         }
 
         auto w = effects->findWindow(zoneWindow->m_toplevel->surface());
         if (!w) {
             qDebug() << "Could not find window" << zoneWindow->m_toplevel << zoneWindow << zoneWindow->m_toplevel->surface();
-            send_position_unknown(resource->handle, window);
+            send_position_failed(resource->handle, window);
             return;
         }
-        const auto zoneGeometry = effects->clientArea(ScreenArea, m_output, effects->currentDesktop());
-        const QPointF pos = w->frameGeometry().topLeft() - zoneGeometry.topLeft();
+        const QPointF pos = w->frameGeometry().topLeft() - m_area.topLeft();
         send_position(resource->handle, pos.x(), pos.y());
     }
     void ext_zone_v1_set_position(Resource *resource, struct ::wl_resource *window, int32_t x, int32_t y) override
@@ -84,21 +84,20 @@ public:
         }
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
             qDebug() << "different zone" << zoneWindow->m_zone << this;
-            send_position_unknown(resource->handle, window);
+            send_position_failed(resource->handle, window);
             return;
         }
 
         auto w = waylandServer()->findWindow(zoneWindow->m_toplevel->surface());
         if (!w) {
             qDebug() << "Could nt find surface" << zoneWindow->m_toplevel;
-            send_position_unknown(resource->handle, window);
+            send_position_failed(resource->handle, window);
             return;
         }
-        const auto zoneGeometry = effects->clientArea(ScreenArea, m_output, effects->currentDesktop());
-        const QPointF pos = QPointF(x, y) + zoneGeometry.topLeft();
-        if (!zoneGeometry.contains(pos)) {
-            qDebug() << "could not position toplevel" << m_output->geometry() << pos << zoneGeometry;
-            send_position_unknown(resource->handle, window);
+        const QPoint pos = QPoint(x, y) + m_area.topLeft();
+        if (!m_area.contains(pos)) {
+            qDebug() << "could not position toplevel" << m_area << pos << m_area;
+            send_position_failed(resource->handle, window);
             return;
         }
         w->move(pos);
@@ -107,14 +106,14 @@ public:
         ExtZoneWindowV1Interface *zoneWindow = ExtZoneWindowV1Interface::get(window);
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
             qDebug() << "c" << zoneWindow->m_zone;
-            send_position_unknown(resource->handle, window);
+            send_position_failed(resource->handle, window);
             return;
         }
 
         auto w = waylandServer()->findWindow(zoneWindow->m_toplevel->surface());
         if (!w) {
             qDebug() << "d" << zoneWindow;
-            send_position_unknown(resource->handle, window);
+            send_position_failed(resource->handle, window);
             return;
         }
         // TODO: Make it per-zone?
@@ -140,8 +139,24 @@ public:
         send_window_left(resource->handle, window);
     }
 
+    void setArea(const QRect &area) {
+        if (m_area == area) {
+            return;
+        }
+
+        const bool sizeChange = m_area.size() != area.size();
+        m_area = area;
+        if (sizeChange) {
+            const auto clientResources = resourceMap();
+            for (auto r : clientResources) {
+                send_size(r->handle, m_area.width(), m_area.height());
+            }
+        }
+
+    }
+
 private:
-    Output *const m_output;
+    QRect m_area;
     const QString m_handle;
 };
 
@@ -178,18 +193,32 @@ public:
         (*it)->add(resource->client(), id, s_version);
     }
 
-    void ext_zone_manager_v1_get_zone(Resource *resource, uint32_t id, struct ::wl_resource *outputResource, const QString &handle) override
+    void ext_zone_manager_v1_get_zone(Resource *resource, uint32_t id, struct ::wl_resource *outputResource) override
     {
-        OutputInterface *output = OutputInterface::get(outputResource);
-        if (!output) {
+        OutputInterface *outputIface = OutputInterface::get(outputResource);
+        if (!outputIface) {
             wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "output object not found");
             return;
         }
 
+        auto output = outputIface->handle();
+        const auto handle = output->name();
         auto it = m_zones.constFind(handle);
         if (it == m_zones.constEnd()) {
-            auto zone = new ExtZoneV1Interface(output, handle);
+            auto zone = new ExtZoneV1Interface(output->geometry(), handle);
+            connect(output, &Output::geometryChanged, zone, [zone, output] {
+                zone->setArea(output->geometry());
+            });
             it = m_zones.insert(handle, zone);
+        }
+        (*it)->add(resource->client(), id, s_version);
+    }
+
+    void ext_zone_manager_v1_get_zone_from_handle(QtWaylandServer::ext_zone_manager_v1::Resource * resource, uint32_t id, const QString & handle) override
+    {
+        auto it = m_zones.constFind(handle);
+        if (it == m_zones.constEnd()) {
+            wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "zone handle not found");
         }
         (*it)->add(resource->client(), id, s_version);
     }
