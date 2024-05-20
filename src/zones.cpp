@@ -18,6 +18,9 @@
 #include "wayland_server.h"
 #include "window.h"
 
+#include <KConfig>
+#include <KConfigGroup>
+
 namespace KWin
 {
 static const int s_version = 1;
@@ -209,16 +212,29 @@ public:
             connect(output, &Output::geometryChanged, zone, [zone, output] {
                 zone->setArea(output->geometry());
             });
+            connect(output, &Output::aboutToTurnOff, this, [this, output] {
+                delete m_zones.take(output->name());
+            });
             it = m_zones.insert(handle, zone);
         }
         (*it)->add(resource->client(), id, s_version);
     }
 
-    void ext_zone_manager_v1_get_zone_from_handle(QtWaylandServer::ext_zone_manager_v1::Resource * resource, uint32_t id, const QString & handle) override
+    void ext_zone_manager_v1_get_zone_from_handle(Resource *resource, uint32_t id, const QString & handle) override
     {
         auto it = m_zones.constFind(handle);
+        static const KSharedConfig::Ptr cfgZones = KSharedConfig::openConfig("kwinzonesrc");
         if (it == m_zones.constEnd()) {
-            wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "zone handle not found");
+            KConfigGroup grp = cfgZones->group("Zones");
+            static auto watcher = KConfigWatcher::create(cfgZones);
+            auto zone = new ExtZoneV1Interface(grp.readEntry(handle, QRect()), handle);
+            connect(watcher.get(), &KConfigWatcher::configChanged, zone, [handle, zone] (const KConfigGroup &group, const QByteArrayList &names) {
+                if (!names.contains(handle)) {
+                    return;
+                }
+                zone->setArea(group.readEntry(handle, QRect()));
+            });
+            it = m_zones.insert(handle, zone);
         }
         (*it)->add(resource->client(), id, s_version);
     }
@@ -230,7 +246,6 @@ public:
 Zones::Zones()
     : m_extZones(new ExtZoneManagerV1Interface(effects->waylandDisplay(), this))
 {
-
 }
 
 }

@@ -24,6 +24,7 @@ find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     Widgets
     WaylandClient
 )
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config)
 find_package(WaylandProtocols REQUIRED)
 find_package(Wayland 1.3 REQUIRED COMPONENTS Client)
 
