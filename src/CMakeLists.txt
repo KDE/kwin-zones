@@ -26,7 +26,7 @@ ecm_add_qtwayland_server_protocol(kwin_effect_zones
     BASENAME ext-zones-v1
 )
 
-target_link_libraries(kwin_effect_zones KWin::kwin)
+target_link_libraries(kwin_effect_zones KWin::kwin KF6::ConfigGui)
 install(
     TARGETS
         kwin_effect_zones
