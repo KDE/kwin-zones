@@ -10,26 +10,26 @@
 
 class QWindow;
 
-class ZoneWindowAttached : public QObject
+class ZoneItemAttached : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("Use attached")
-    QML_ATTACHED(ZoneWindowAttached)
-    Q_PROPERTY(ZoneWindow *window MEMBER m_window CONSTANT)
+    QML_ATTACHED(ZoneItemAttached)
+    Q_PROPERTY(ZoneItem *item MEMBER m_item CONSTANT)
     Q_PROPERTY(ZoneZone *zone READ zone WRITE setZone NOTIFY zoneChanged)
 public:
-    ZoneWindowAttached(ZoneWindow *window);
+    ZoneItemAttached(ZoneItem *window);
 
-    ZoneZone *zone();
+    ZoneZone *zone() const;
     void setZone(ZoneZone *zone);
 
     /**
-     * Gets the ZoneWindow for a given Qt Window
+     * Gets the ZoneItem for a given Qt Window
      * Ownership is not transferred
      */
-    static ZoneWindowAttached *get(QWindow *window);
-    static ZoneWindowAttached *qmlAttachedProperties(QObject *object);
+    static ZoneItemAttached *get(QWindow *window);
+    static ZoneItemAttached *qmlAttachedProperties(QObject *object);
 
 Q_SIGNALS:
     void zoneChanged(ZoneZone *zone);
@@ -38,6 +38,5 @@ public Q_SLOTS:
     void requestPosition(const QPoint &point);
 
 private:
-    ZoneWindow *const m_window;
-    ZoneZone *m_zone = nullptr;
+    ZoneItem *const m_item;
 };

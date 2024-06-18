@@ -1,0 +1,5 @@
+File=zonessettings.kcfg
+NameSpace=KWin
+ClassName=ZonesSettings
+Mutators=true
+ParentInConstructor=true
