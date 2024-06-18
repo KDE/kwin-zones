@@ -30,7 +30,7 @@ ZoneItem::ZoneItem(QWindow *window)
 #if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
     connect(window, &QWindow::visibilityChanged, this, &ZoneItem::manageSurface, Qt::QueuedConnection);
 #else
-    connect(window, &QWindow::surfaceRoleCreated, this, &ZoneItem::manageSurface, Qt::QueuedConnection);
+    connect(window, &QWindow::surfaceRoleCreated, this, &ZoneItem::manageSurface);
 #endif
 }
 
