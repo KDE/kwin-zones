@@ -21,6 +21,8 @@ ecm_setup_qtplugin_macro_names(
 add_library(kwin_effect_zones)
 target_sources(kwin_effect_zones PRIVATE main.cpp zones.cpp)
 
+
+kconfig_add_kcfg_files(kwin_effect_zones zonessettings.kcfgc)
 ecm_add_qtwayland_server_protocol(kwin_effect_zones
     PROTOCOL ext-zones-v1.xml
     BASENAME ext-zones-v1

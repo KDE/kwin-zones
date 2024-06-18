@@ -25,8 +25,8 @@
     DEALINGS IN THE SOFTWARE.
   </copyright>
 
-  <description summary="protocol to manage client-specific zones and place windows within them">
-    This protocol provides a way for clients to create and add windows
+  <description summary="protocol to manage client-specific zones and set window placement within them">
+    This protocol provides a way for clients to create and add toplevel windows
     to "zones".
 
     A zone is a isolated environment with its own coordinate space where
@@ -44,19 +44,19 @@
     only be done by creating a new major version of the extension.
   </description>
 
-  <interface name="ext_zone_window_v1" version="1">
-    <description summary="opaque window object that can be positioned">
-      The zone window object is an opaque descriptor for a positionable
-      window.
+  <interface name="ext_zone_item_v1" version="1">
+    <description summary="opaque surface object that can be positioned">
+      The zone item object is an opaque descriptor for a positionable
+      element, such as a toplevel window.
       It currently can only be created from a 'xdg_toplevel' via a
-      'get_zone_window' request.
+      'get_zone_item' request.
     </description>
 
     <request name="destroy" type="destructor">
       <description summary="delete this object">
-        Destroys the zone window. This request may be sent at any time by the
+        Destroys the zone item. This request may be sent at any time by the
         client.
-        By destroying the object, the respective window remains at its
+        By destroying the object, the respective item surface remains at its
         last position, but its association with its zone is lost.
         This will also cause it to loose any attached state, like the its
         layer index.
@@ -76,13 +76,13 @@
       </description>
     </request>
 
-    <request name="get_zone_window">
-      <description summary="create a positionable window from a toplevel">
-	Create a new positionable zone window from an xdg_toplevel.
+    <request name="get_zone_item">
+      <description summary="create a positionable item representing a toplevel">
+	Create a new positionable zone item from an xdg_toplevel.
         The resulting wrapper object can then be used to position the
         toplevel window in a zone.
       </description>
-      <arg name="id" type="new_id" interface="ext_zone_window_v1"/>
+      <arg name="id" type="new_id" interface="ext_zone_item_v1"/>
       <arg name="toplevel" type="object" interface="xdg_toplevel" summary="the toplevel window"/>
     </request>
 
@@ -94,7 +94,7 @@
 	A zone is represented by a string 'handle'.
 
         The compositor must keep zone handles valid while any client is
-        using the corresponding zone and has windows associated with it.
+        using the corresponding zone and has items associated with it.
         The compositor may always give a client the same zone and
         remember its position and size for the client, but clients should
         not rely on this behavior.
@@ -144,42 +144,52 @@
   </interface>
 
   <interface name="ext_zone_v1" version="1">
-    <description summary="output area for a client to query and set window placement">
+    <description summary="area for a client in which in can set window positioning preferences">
       An 'ext_zone' describes a display area provided by the compositor in
       which a client can place windows and move them around.
 
       A zone's area could for example correspond to the space usable for
       placing windows on a specific output (space without panels or other
       restricted elements) or it could be an area of the output the compositor
-      has specifically chosen for a client to place its windows in.
+      has specifically chosen for a client to place its surfaces in.
+
+      Windows are added to a zone as 'ext_zone_item_v1' item objects.
 
       A compositor may visually distinguish what makes up a zone, for example
       by adding a frame around it and/or a background.
 
-      The compositor must ensure all the windows associated with a zone
-      are contained within it, and should resize the zone accordingly
-      if the user moves windows out of the zone's original bounds.
+      All items associated with a zone should ideally be always contained
+      within it. If possible, the compositor should ensure this by resizing
+      zone accordingly if the user moves items surfaces out of the zone's
+      original bounds.
 
-      A window is considered "in bounds" if its top-left coordinate is within
-      the zone's coordinate system. The remaining parts of the window may
-      overlap the zone bounds.
-
-      If a window is moved out of a zone's bounds by the user or compositor in
-      a way where the compositor cannot resize the zone accordingly, the
-      compositor must force it to leave the respective zone (emitting a
-      'window_left' event).
-
-      All window placement coordinates (x, y) are relative to the selected zone.
+      All item surface coordinates (x, y) are relative to the selected zone.
       They are using the 'size' of the respective zone as coordinate system,
       with (0, 0) being in the top left corner.
+
+      An item (e.g. a toplevel window) is considered "in bounds" if its
+      top-left coordinate is within the zone's coordinate system (the surface
+      may extent beyond the zone's size, but it may not be fully visible to the
+      user in that case).
+
+      If a zone item is moved out of the top/left boundaries of the zone by
+      user interaction, its coordinates must become negative, relative to the
+      zones top-left coordinate origin. A client can not set negative
+      coordinates on a zone item (and thereby move it out of the zone).
+
+      If a zone item is moved out of a zone's bottom/right boundaries by the
+      user or compositor, the compositor should try to resize the zone
+      accordingly to make sure all zone items are still contained within it.
+      If this can not be done, the compositor must force the item to leave the
+      respective zone (emitting an 'item_left' event).
 
       The absolute position of the zone within the compositor is opaque to the
       client and the compositor may move the entore zone around without the
       client's notice. It may also be arbitrarily resized, in which case the
       respective 'size' event must be emitted again to notify the client.
 
-      Windows are allowed to have a "layer" attribute, to keep them permanently
-      above or below other windows in the same zone.
+      Zone items are allowed to have a "layer" attribute, to keep them permanently
+      above or below other surfaces in the same zone.
       Using layers, clients can overlay their own windows permanently, but not
       the ones of other clients not sharing a zone.
 
@@ -247,152 +257,173 @@
       </description>
     </event>
 
-    <request name="add_window">
-      <description summary="associate a window with this zone">
-        Make 'window' a member of this zone.
+    <request name="add_item">
+      <description summary="associate an item with this zone">
+        Make 'item' a member of this zone.
         This state is double-buffered and is applied on the next
-        wl_surface.commit of the surface represented by 'window'.
+        wl_surface.commit of the surface represented by 'item'.
 
-        This request associates a window with this zone.
-        If this request is called on a window that already has a zone
-        association with a different zone, the window must leave its old zone
-        (with 'window_left' being emitted on its old zone) and will instead
+        This request associates an item with this zone.
+        If this request is called on an item that already has a zone
+        association with a different zone, the item should leave its old zone
+        (with 'item_left' being emitted on its old zone) and will instead
         be associated with this zone.
 
-        Upon receiving this request, a compositor must emit 'window_entered'
-        to confirm the zone association. It must even emit this event if the
-        window was already associated with this zone before.
+        Upon receiving this request and if the target zone is allowed for 'item',
+        a compositor must emit 'item_entered' to confirm the zone association.
+        It must even emit this event if the item was already associated with this
+        zone before.
 
-        The compositor must move the window into the boundary of this zone
-        upon receiving this request (either by extending the zone size, or by
-        moving the window).
+        The compositor must move the surface represented by 'item' into the
+        boundary of this zone upon receiving this request and accepting it
+        (either by extending the zone size, or by moving the item surface).
+
+        If the compositor does not allow the item to switch zone associations,
+        and wants it to remain in its previous zone, it must emit
+        'item_blocked' instead.
+        Compositors might want to prevent zone associations if they
+        perform specialized window management (e.g. autotiling) that would
+        make clients moving items between certain zones undesirable.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the zone item"/>
     </request>
 
-    <request name="remove_window">
-      <description summary="disassociate a window from this zone">
-        Remove 'window' as a member of this zone.
+    <request name="remove_item">
+      <description summary="disassociate an item from this zone">
+        Remove 'item' as a member of this zone.
         This state is double-buffered and is applied on the next
-        wl_surface.commit of the surface represented by 'window'.
+        wl_surface.commit of the surface represented by 'item'.
 
-        This request removes the window from this zone explicitly,
+        This request removes the item from this zone explicitly,
         making the client unable to retrieve coordinates again.
 
         Upon receiving this request, the compositor should not change the
-        window's position on screen, and must emit 'window_left' to confirm
-        the window's removal. It must even emit this event if the
-        window was never associated with this zone.
+        item surface position on screen, and must emit 'item_left' to confirm
+        the item's removal. It must even emit this event if the
+        item was never associated with this zone.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the zone item"/>
     </request>
 
-    <event name="window_entered">
-      <description summary="notify about a window having joined this zone">
-        This event notifies the client of a window joining a zone.
+    <event name="item_blocked">
+      <description summary="an item could not be associated with this zone">
+        This event notifies the client that an item was prevented from
+        joining this zone.
 
-        It is emitted as a response to 'add_window' or if the compositor
-        automatically had the window (re)join an existing zone.
+        It is emitted as a response to 'add_item' if the compoistor did not
+        allow the item to join this particular zone.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window that has joined the zone"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the item that was prevented from joining this zone"/>
     </event>
 
-    <event name="window_left">
-      <description summary="notify about a window having left this zone">
-        This event notifies the client of a window leaving this zone, and
+    <event name="item_entered">
+      <description summary="notify about an item having joined this zone">
+        This event notifies the client of an item joining a zone.
+
+        It is emitted as a response to 'add_item' or if the compositor
+        automatically had the item surface (re)join an existing zone.
+      </description>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the item that has joined the zone"/>
+    </event>
+
+    <event name="item_left">
+      <description summary="notify about an item having left this zone">
+        This event notifies the client of an item leaving this zone, and
         therefore the client being unable to retrieve its coordinates in
         future.
-        If the client still wishes to adjust the window's coordinates, it may
-        associate the window with a zone again by calling 'add_window',
+        If the client still wishes to adjust the item surface coordinates, it
+        may associate the item with a zone again by calling 'add_item',
         potentially causing the zone boundaries to change.
 
-        This event is emitted for example if the user moved a window out of a
-        smaller zone's boundaries, or onto a different screen where the previous
-        zone can not expand to. It is also emitted in response to explicitly
-        removing a window via 'remove_window'.
+        This event is emitted for example if the user moved an item surface out
+        of a smaller zone's boundaries, or onto a different screen where the
+        previous zone can not expand to. It is also emitted in response to
+        explicitly removing an item via 'remove_item'.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window that has left the zone"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the item that has left the zone"/>
     </event>
 
     <request name="set_position">
-      <description summary="set a preferred window position">
-        Request a preferred position (x, y) for the specified window
-        to be placed at relative to this zone.
+      <description summary="set a preferred item surface position">
+        Request a preferred position (x, y) for the specified item
+        surface to be placed at, relative to this zone.
         This state is double-buffered and is applied on the next
-        wl_surface.commit of the surface represented by 'window'.
+        wl_surface.commit of the surface represented by 'item'.
 
-        If the window is not yet associated with a zone, or not associated
+        If the item is not yet associated with a zone, or not associated
         with this zone, this request must be discarded and a 'position_failed'
         event must be emitted instead of the 'position' event that is sent on
         success.
 
-        X and Y coordinates are relative to this zone, and should not be larger
+        X and Y coordinates are relative to this zone, and must not be larger
         than the dimensions set by the zone size, or smaller than zero.
         If any coordinate is negative, and 'invalid' error must be raised.
         If a coordinate exceeds the zone's bounds, the compositor should sanitize
         it to more appropriate values (e.g. by clamping the values to the maximum
         size). For infinite zones, the client may pick any coordinate.
 
-        Compositors implementing this protocol should try to place a window
+        Compositors implementing this protocol should try to place an item
         at the preferred coordinates relative to the zone, unless doing
         so is not allowed by compositor policy because e.g. the user has set
-        custom rules for the respective window, the window overlaps with a
-        protected shell component, session management has loaded previous
-        window positions or the placement request would send the window
-        out of bounds.
+        custom rules for the surface represented by the respective item, the
+        surface overlaps with a protected shell component, session management
+        has loaded previous surface positions or the placement request would
+        send the item out of bounds.
 
         Clients should be aware that their placement preferences might not
         always be followed and must be prepared to handle the case where the
-        window is placed at a different position by the compositor.
+        item is placed at a different position by the compositor.
         The compositor makes the ultimate final placement decision, but should
         take the client's preferences into account.
 
-        Once a window has been mapped, a change to its placement preferences
+        Once an item has been mapped, a change to its placement preferences
         can still be requested and should be applied, but must not be followed
-        by the compositor if the user is interacting with the affected window
-        (e.g. clicking &amp; dragging within the window, or resizing it).
+        by the compositor if the user is interacting with the affected item
+        surface (e.g. clicking &amp; dragging within the window, or resizing it).
 
         After a call to this request, a 'position' event must be emitted with the
-        window's new actual position.
+        item's new actual position.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the zone item"/>
       <arg name="x" type="int" summary="x position relative to zone"/>
       <arg name="y" type="int" summary="y position relative to zone"/>
     </request>
 
     <request name="get_position">
-      <description summary="request the current position of the window">
-        Request the position (x, y) of the window, relative to this zone.
+      <description summary="request the current position of the item">
+        Request the position (x, y) of the item, relative to this zone.
 
-        If 'window' was not associated with this zone prior to calling
+        If 'item' was not associated with this zone prior to calling
         this request, a 'position_failed' event must be emitted.
         Otherwise, the compositor must respond with a 'position' event
         containing the requested information.
 
-        If many 'get_position' requests are emitted for a window, the
+        If many 'get_position' requests are send for an item, the
         compositor may still only respond with one 'position' event,
-        containing the latest position of the window.
+        containing the latest position of the item.
 
         Clients should be aware that the returned position is subject
         to the compositor's window management policies and user settings,
         and may not follow any previously set placement preference.
-        The returned position may also not reflect the window's current
+        The returned position may also not reflect the item's current
         position, as it could have been moved inbetween issueing the request
         and receiving its result.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the zone item"/>
     </request>
 
     <event name="position">
-      <description summary="notify about the current window position">
+      <description summary="notify about the position of an item">
         This event notifies the client of the current position (x, y) of
-        the window relative to this zone.
-        Coordinates are relative to the zone the window belongs to, and only
+        the item relative to this zone.
+        Coordinates are relative to the zone the item belongs to, and only
         valid within it.
+        Negative coordinates are possible, if the user has moved an item
+        surface beyone the zone's top-left boundary.
 
         The event is only sent in response to a 'get_position' request.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window this position belongs to"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the item this position belongs to"/>
       <arg name="x" type="int" summary="current x position relative to zone"/>
       <arg name="y" type="int" summary="current y position relative to zone"/>
     </event>
@@ -400,51 +431,51 @@
     <event name="position_failed">
       <description summary="a get/set position request has failed">
         The compositor was unable to determine the position of the respective
-        window, or could not set the position of the window.
+        item, or could not set the position of the item.
 
         This could have happened because a request to 'get_position' was made
-        using a zone that the 'window' does not belong to, or if it left its
+        using a zone that the 'item' does not belong to, or if it left its
         zone after a 'get_position' request was made.
 
         This is usually a transient error and the client may attempt a
-        'get_position' request again after verifying the window's state.
+        'get_position' request again after verifying the item's placement.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the window this event belongs to"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the item this event belongs to"/>
     </event>
 
     <request name="set_layer">
-      <description summary="permanently pin a window to a relative z-order">
+      <description summary="permanently pin an item to a relative z-order">
         Request a preferred permanent Z position for the specified
-        window relative to other windows in this zone.
+        item relative to other item surfaces in this zone.
         This state is double-buffered and is applied on the next
-        wl_surface.commit of the surface represented by 'window'.
+        wl_surface.commit of the surface represented by 'item'.
 
-        This function associates a "layer index" with the respective
-        window, with all windows assumed to be positioned at a layer with
+        This function associates a "layer index" with the respective item,
+        with all item surfaces assumed to be positioned at a layer with
         index 0 by default.
-        Windows that are positioned in a layer with a higher index permanently
-        float above windows with a lower index. Windows with a lower layer
-        index sink below windows with a higher index.
+        Item surfaces that are positioned in a layer with a higher index
+        permanently float above items with a lower index. Items with a
+        lower layer index sink below items with a higher index.
 
-        Upon user interaction, sunken windows are not raised on top of windows
-        in a layer with an index higher than theirs, and floating windows do
-        not sink below windows in a lower layer, even if these windows are
+        Upon user interaction, sunken item surfaces are not raised on top of
+        items in a layer with an index higher than theirs, and floating items
+        do not sink below items in a lower layer, even if these items are
         selected.
 
-        Windows with the same layer index are subject to compositor policy,
+        Items with the same layer index are subject to compositor policy,
         which usually means they will obey user interaction and raise above or
-        sink below each other depending on which window is currently activated.
+        sink below each other depending on which surface is currently activated.
 
-        The layer index only affects the stacking order of windows within the
-        same zone. The compositor is allowed to move windows of one zone
-        (or no zone) above or below any window in a different zone, regardless
+        The layer index only affects the stacking order of items within the
+        same zone. The compositor is allowed to move items of one zone
+        (or no zone) above or below any item in a different zone, regardless
         of their zone-specific layer index.
 
         Compositors without support for stacking windows or with other conflicting
         policy may ignore this request.
       </description>
-      <arg name="window" type="object" interface="ext_zone_window_v1" summary="the zone window"/>
-      <arg name="layer_index" type="int" summary="the window layer position"/>
+      <arg name="item" type="object" interface="ext_zone_item_v1" summary="the zone item"/>
+      <arg name="layer_index" type="int" summary="the item surface layer position"/>
     </request>
 
   </interface>
