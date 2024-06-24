@@ -1,10 +1,4 @@
-include(ECMSetupQtPluginMacroNames)
-
-find_package(QtWaylandScanner REQUIRED)
-set_package_properties(QtWaylandScanner PROPERTIES
-    TYPE REQUIRED
-    PURPOSE "Required for building this effect"
-)
+add_subdirectory(client)
 
 ecm_setup_qtplugin_macro_names(
     JSON_ARG2
