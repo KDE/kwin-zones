@@ -35,7 +35,7 @@ set_package_properties(QtWaylandScanner PROPERTIES
     PURPOSE "Required for building this effect"
 )
 
-add_definitions(-DQT_NO_KEYWORDS)
+#add_definitions(-DQT_NO_KEYWORDS)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 20)
