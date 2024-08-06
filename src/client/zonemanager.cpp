@@ -55,6 +55,10 @@ void ZoneItem::manageSurface()
     Q_ASSERT(isInitialized());
     if (m_zone) {
         m_zone->add_item(object());
+
+        if (m_layerIndex) {
+            m_zone->set_layer(object(), *m_layerIndex);
+        }
     }
 }
 
@@ -82,6 +86,21 @@ ZoneZone* ZoneItem::zone()
     }
     return m_zone;
 }
+void ZoneItem::setLayerIndex(qint32 layerIndex)
+{
+    if (m_layerIndex != layerIndex) {
+        m_layerIndex = layerIndex;
+        if (object()) {
+            zone()->set_layer(object(), layerIndex);
+        }
+    }
+}
+
+qint32 ZoneItem::layerIndex() const
+{
+    return m_layerIndex.value_or(0);
+}
+
 
 ZoneItemAttached* ZoneItem::get()
 {
