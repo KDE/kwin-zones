@@ -19,8 +19,6 @@ class ZoneItemAttached : public QObject
     Q_PROPERTY(ZoneItem *item MEMBER m_item CONSTANT)
     Q_PROPERTY(ZoneZone *zone READ zone WRITE setZone NOTIFY zoneChanged)
 public:
-    ZoneItemAttached(ZoneItem *window);
-
     ZoneZone *zone() const;
     void setZone(ZoneZone *zone);
 
@@ -38,5 +36,7 @@ public Q_SLOTS:
     void requestPosition(const QPoint &point);
 
 private:
+    friend class ZoneItem;
+    ZoneItemAttached(ZoneItem *window);
     ZoneItem *const m_item;
 };
