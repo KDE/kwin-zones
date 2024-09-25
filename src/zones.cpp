@@ -33,12 +33,17 @@ public:
         : m_toplevel(toplevel)
     {}
 
+    ~ExtZoneItemV1Interface();
+
     static ExtZoneItemV1Interface *get(::wl_resource *resource)
     {
         return resource_cast<ExtZoneItemV1Interface *>(resource);
     }
 
     Window *window() const {
+        if (!m_toplevel) {
+            return nullptr;
+        }
         return waylandServer()->findWindow(m_toplevel->surface());
     }
 
@@ -187,6 +192,7 @@ private:
     }
     void addToZone(Window *w, int layer);
 
+    friend class ExtZoneItemV1Interface;
     QSet<ExtZoneItemV1Interface *> m_items;
     QRect m_area;
     const QString m_handle;
@@ -275,6 +281,12 @@ public:
 Zones::Zones()
     : m_extZones(new ExtZoneManagerV1Interface(effects->waylandDisplay(), this))
 {
+}
+
+ExtZoneItemV1Interface::~ExtZoneItemV1Interface() {
+    if (m_zone) {
+        m_zone->m_items.remove(this);
+    }
 }
 
 }
