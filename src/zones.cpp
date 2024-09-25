@@ -38,6 +38,11 @@ public:
         return resource_cast<ExtZoneItemV1Interface *>(resource);
     }
 
+    Window *window() const {
+        return waylandServer()->findWindow(m_toplevel->surface());
+    }
+
+    int layer_index = 0;
     XdgToplevelInterface *const m_toplevel;
     ExtZoneV1Interface* m_zone = nullptr;
 };
@@ -64,7 +69,7 @@ public:
     {
         ExtZoneItemV1Interface *zoneItem = ExtZoneItemV1Interface::get(item);
         if (zoneItem->m_zone != this || !zoneItem->m_zone) {
-            qDebug() << "Could nopt find item in zone" << zoneItem->m_zone;
+            qDebug() << "Could not find item in zone" << zoneItem->m_zone;
             send_position_failed(resource->handle, item);
             return;
         }
@@ -113,26 +118,28 @@ public:
             return;
         }
 
-        auto w = waylandServer()->findWindow(zoneWindow->m_toplevel->surface());
-        if (!w) {
-            qDebug() << "Could not find window" << zoneWindow;
-            send_position_failed(resource->handle, item);
-            return;
+        zoneWindow->layer_index = layer_index;
+        StackingUpdatesBlocker blocker(workspace());
+        auto current = zoneWindow->window();
+        for (auto item : m_items) {
+            if (zoneWindow->layer_index < layer_index) {
+                workspace()->constrain(current, item->window());
+                workspace()->unconstrain(item->window(), current);
+            } else if (zoneWindow->layer_index > layer_index) {
+                workspace()->constrain(item->window(), current);
+                workspace()->unconstrain(current, item->window());
+            } else if (zoneWindow->layer_index == layer_index) {
+                workspace()->unconstrain(current, item->window());
+                workspace()->unconstrain(item->window(), current);
+            }
         }
-        // TODO: Make it per-zone?
-        w->setStackingOrder(layer_index);
     }
 
     void ext_zone_v1_destroy(Resource *resource) override {
         wl_resource_destroy(resource->handle);
     }
-    void ext_zone_v1_add_item(Resource *resource, struct ::wl_resource *item) override {
-        auto w = ExtZoneItemV1Interface::get(item);
-        if (w->m_zone && w->m_zone != this) {
-            w->m_zone->send_item_left(resource->handle, item);
-        }
-        w->m_zone = this;
-        send_item_entered(resource->handle, item);
+    void ext_zone_v1_add_item(Resource */*resource*/, struct ::wl_resource *item) override {
+        setThisZone(item);
     }
     void ext_zone_v1_remove_item(Resource *resource, struct ::wl_resource *item) override {
         auto w = ExtZoneItemV1Interface::get(item);
@@ -140,6 +147,12 @@ public:
             w->m_zone = nullptr;
         }
         send_item_left(resource->handle, item);
+        StackingUpdatesBlocker blocker(workspace());
+        for (auto item : m_items) {
+            workspace()->unconstrain(w->window(), item->window());
+            workspace()->unconstrain(item->window(), w->window());
+        }
+        m_items.remove(w);
     }
 
     void setArea(const QRect &area) {
@@ -158,6 +171,23 @@ public:
     }
 
 private:
+    void setThisZone(wl_resource *item) {
+        auto w = ExtZoneItemV1Interface::get(item);
+        Q_ASSERT(w);
+        if (w->m_zone && w->m_zone != this) {
+            for (auto resource : w->m_zone->resourceMap()) {
+                w->m_zone->send_item_left(resource->handle, item);
+            }
+        }
+        w->m_zone = this;
+        m_items.insert(w);
+        for (auto resource : resourceMap()) {
+            w->m_zone->send_item_left(resource->handle, item);
+        }
+    }
+    void addToZone(Window *w, int layer);
+
+    QSet<ExtZoneItemV1Interface *> m_items;
     QRect m_area;
     const QString m_handle;
 };
