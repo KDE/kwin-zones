@@ -6,15 +6,13 @@
 
 #pragma once
 
-#include <effect/effect.h>
-#include <effect/effectwindow.h>
-#include <effect/effecthandler.h>
+#include <plugin.h>
 
 namespace KWin
 {
 class ExtZoneManagerV1Interface;
 
-class Zones : public Effect
+class Zones : public Plugin
 {
     Q_OBJECT
 public:

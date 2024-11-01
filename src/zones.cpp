@@ -279,7 +279,7 @@ public:
 };
 
 Zones::Zones()
-    : m_extZones(new ExtZoneManagerV1Interface(effects->waylandDisplay(), this))
+    : m_extZones(new ExtZoneManagerV1Interface(waylandServer()->display(), this))
 {
 }
 
