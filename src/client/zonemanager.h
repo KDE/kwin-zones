@@ -27,6 +27,7 @@ class ZoneItemAttached;
 class ZoneItem : public QObject, public QtWayland::ext_zone_item_v1
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(QPoint position READ position NOTIFY positionChanged)
     Q_PROPERTY(qint32 layerIndex READ layerIndex WRITE setLayerIndex NOTIFY layerIndexChanged)
 public:
