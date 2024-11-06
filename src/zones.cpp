@@ -21,6 +21,8 @@
 #include <KConfig>
 #include <KConfigGroup>
 
+#include <kwinzonescompositorlogging.h>
+
 namespace KWin
 {
 static const int s_version = 1;
@@ -74,14 +76,14 @@ public:
     {
         ExtZoneItemV1Interface *zoneItem = ExtZoneItemV1Interface::get(item);
         if (zoneItem->m_zone != this || !zoneItem->m_zone) {
-            qDebug() << "Could not find item in zone" << zoneItem->m_zone;
+            qCDebug(KWINZONES) << "Could not find item in zone" << zoneItem->m_zone;
             send_position_failed(resource->handle, item);
             return;
         }
 
         auto w = waylandServer()->findWindow(zoneItem->m_toplevel->surface());
         if (!w) {
-            qDebug() << "Could not find item" << zoneItem->m_toplevel << zoneItem << zoneItem->m_toplevel->surface();
+            qCDebug(KWINZONES) << "Could not find item" << zoneItem->m_toplevel << zoneItem << zoneItem->m_toplevel->surface();
             send_position_failed(resource->handle, item);
             return;
         }
@@ -96,20 +98,20 @@ public:
             return;
         }
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
-            qDebug() << "Different zone" << zoneWindow->m_zone << this;
+            qCDebug(KWINZONES) << "Different zone" << zoneWindow->m_zone << this;
             send_position_failed(resource->handle, item);
             return;
         }
 
         auto w = waylandServer()->findWindow(zoneWindow->m_toplevel->surface());
         if (!w) {
-            qDebug() << "Could not find surface" << zoneWindow->m_toplevel;
+            qCDebug(KWINZONES) << "Could not find surface" << zoneWindow->m_toplevel;
             send_position_failed(resource->handle, item);
             return;
         }
         const QPoint pos = QPoint(x, y) + m_area.topLeft();
         if (!m_area.contains(pos)) {
-            qDebug() << "could not position toplevel" << m_area << pos << m_area;
+            qCDebug(KWINZONES) << "could not position toplevel" << m_area << pos << m_area;
             send_position_failed(resource->handle, item);
             return;
         }
@@ -118,7 +120,7 @@ public:
     void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *item, int32_t layer_index) override {
         ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
-            qDebug() << "Mismatched zone" << zoneWindow->m_zone;
+            qCDebug(KWINZONES) << "Mismatched zone" << zoneWindow->m_zone;
             send_position_failed(resource->handle, item);
             return;
         }
