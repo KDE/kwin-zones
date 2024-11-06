@@ -9,6 +9,8 @@
 #include <qpa/qplatformnativeinterface.h>
 #include <qwayland-wayland.h>
 
+#include <kwinzonesclientlogging.h>
+
 Q_GLOBAL_STATIC(ZoneManager, s_manager)
 
 ZoneManager::ZoneManager()
@@ -45,7 +47,7 @@ void ZoneItem::manageSurface()
 
     auto tl = (::xdg_toplevel *)QGuiApplication::platformNativeInterface()->nativeResourceForWindow("xdg_toplevel", m_window);
     if (!tl) {
-        qDebug() << "No xdg_toplevel yet!" << m_window << tl;
+        qCDebug(KWINZONES_CLIENT) << "No xdg_toplevel yet!" << m_window << tl;
         return;
     }
 
@@ -132,11 +134,11 @@ ZoneZone::ZoneZone(::ext_zone_v1* zone)
 void ZoneZone::ext_zone_v1_position_failed(ext_zone_item_v1* item)
 {
     auto www = dynamic_cast<ZoneItem *>(QtWayland::ext_zone_item_v1::fromObject(item));
-    qDebug() << "failed to position window" << item << www;
+    qCDebug(KWINZONES_CLIENT) << "failed to position window" << item << www;
 }
 
 void ZoneZone::ext_zone_v1_item_entered(ext_zone_item_v1* item)
 {
-    qDebug() << "item entered" << QtWayland::ext_zone_item_v1::fromObject(item) << item;
+    qCDebug(KWINZONES_CLIENT) << "item entered" << QtWayland::ext_zone_item_v1::fromObject(item) << item;
     get_position(item);
 }
