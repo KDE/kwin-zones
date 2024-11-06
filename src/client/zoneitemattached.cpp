@@ -7,6 +7,7 @@
 
 #include <qqml.h>
 #include <qpa/qplatformnativeinterface.h>
+#include "kwinzonesclientlogging.h"
 
 QML_DECLARE_TYPEINFO(ZoneItemAttached, QML_HAS_ATTACHED_PROPERTIES)
 
@@ -18,11 +19,11 @@ ZoneItemAttached::ZoneItemAttached(ZoneItem* item)
 ZoneItemAttached* ZoneItemAttached::get(QWindow* window)
 {
     if (!window) {
-        qDebug() << "no window??";
+        qCDebug(KWINZONES_CLIENT) << "no window??";
         return nullptr;
     }
     if (!ZoneManager::isActive()) {
-        qDebug() << "no zones??";
+        qCDebug(KWINZONES_CLIENT) << "no zones??";
         return nullptr;
     }
 
@@ -38,7 +39,7 @@ ZoneItemAttached *ZoneItemAttached::qmlAttachedProperties(QObject *object)
 {
     auto window = qobject_cast<QWindow *>(object);
     if (!window) {
-        qDebug() << "Cannot attach to" << object;
+        qCDebug(KWINZONES_CLIENT) << "Cannot attach to" << object;
     }
     return get(window);
 }
@@ -46,7 +47,7 @@ ZoneItemAttached *ZoneItemAttached::qmlAttachedProperties(QObject *object)
 void ZoneItemAttached::requestPosition(const QPoint& point)
 {
     Q_ASSERT(m_item);
-    qDebug() << "requesting in" << zone() << point;
+    qCDebug(KWINZONES_CLIENT) << "requesting in" << zone() << point;
 
     zone()->set_position(m_item->object(), point.x(), point.y());
 }
