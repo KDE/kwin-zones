@@ -1,11 +1,11 @@
 # SPDX-FileCopyrightText: 2024 Aleix Pol Gonzalez <aleix.pol_gonzalez@mercedes-benz.com>
 # SPDX-License-Identifier: BSD-3-Clause
 
-qt6_add_qml_module(QtZonesQuick
+ecm_add_qml_module(QtZonesQuick
+                  GENERATE_PLUGIN_SOURCE
                   URI "org.kde.zones"
-                  OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/org/kde/zones
+                  VERSION 1.0
                   SOURCES zoneitemattached.cpp zonemanager.cpp)
-set_target_properties(QtZonesQuickplugin PROPERTIES PREFIX "lib")
 target_link_libraries(QtZonesQuick PRIVATE Qt::Qml Qt::WaylandClient Qt::GuiPrivate Wayland::Client Qt::WaylandClientPrivate)
 
 qt6_generate_wayland_protocol_client_sources(QtZonesQuick FILES
@@ -20,4 +20,4 @@ ecm_qt_declare_logging_category(QtZonesQuick
     DEFAULT_SEVERITY Info
 )
 
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/org DESTINATION ${QT6_INSTALL_QML})
+ecm_finalize_qml_module(QtZonesQuick DESTINATION ${KDE_INSTALL_QMLDIR})
