@@ -1,7 +1,7 @@
 /*
     SPDX-FileCopyrightText: 2024 Aleix Pol Gonzalez <aleix.pol_gonzalez@mercedes-benz.com>
 
-    SPDX-License-Identifier: LGPL-2.0-or-later
+    SPDX-License-Identifier: GPL-2.0-or-later
 */
 
 #pragma once

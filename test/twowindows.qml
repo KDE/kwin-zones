@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 Aleix Pol Gonzalez <aleix.pol_gonzalez@mercedes-benz.com>
+// SPDX-License-Identifier: MIT
+
 import QtQuick
 import QtQuick.Controls
 import org.kde.zones
