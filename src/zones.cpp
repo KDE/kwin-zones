@@ -206,6 +206,7 @@ public:
     ExtZoneManagerV1Interface(Display *display, QObject *parent)
         : QObject(parent)
         , ext_zone_manager_v1(*display, s_version)
+        , m_display(display)
     {
     }
 
@@ -235,7 +236,18 @@ public:
 
     void ext_zone_manager_v1_get_zone(Resource *resource, uint32_t id, struct ::wl_resource *outputResource) override
     {
-        OutputInterface *outputIface = OutputInterface::get(outputResource);
+        OutputInterface *outputIface = nullptr;
+
+        if (outputResource) {
+            outputIface = OutputInterface::get(outputResource);
+        } else {
+            QList<OutputInterface *> outputs = m_display->outputs();
+
+            if (!outputs.isEmpty()) {
+                outputIface = outputs[0];
+            }
+        }
+
         if (!outputIface) {
             wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "output object not found");
             return;
@@ -278,6 +290,9 @@ public:
 
     QHash<QString, ExtZoneV1Interface *> m_zones;
     QHash<XdgToplevelInterface *, ExtZoneItemV1Interface *> m_zoneWindows;
+
+private:
+    Display *m_display;
 };
 
 Zones::Zones()
