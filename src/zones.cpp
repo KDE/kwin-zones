@@ -206,7 +206,6 @@ public:
     ExtZoneManagerV1Interface(Display *display, QObject *parent)
         : QObject(parent)
         , ext_zone_manager_v1(*display, s_version)
-        , m_display(display)
     {
     }
 
@@ -241,7 +240,7 @@ public:
         if (outputResource) {
             outputIface = OutputInterface::get(outputResource);
         } else {
-            QList<OutputInterface *> outputs = m_display->outputs();
+            QList<OutputInterface *> outputs = waylandServer()->display()->outputs();
 
             if (!outputs.isEmpty()) {
                 outputIface = outputs[0];
@@ -290,9 +289,6 @@ public:
 
     QHash<QString, ExtZoneV1Interface *> m_zones;
     QHash<XdgToplevelInterface *, ExtZoneItemV1Interface *> m_zoneWindows;
-
-private:
-    Display *m_display;
 };
 
 Zones::Zones()
