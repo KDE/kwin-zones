@@ -129,13 +129,16 @@ public:
         StackingUpdatesBlocker blocker(workspace());
         auto current = zoneWindow->window();
         for (auto item : m_items) {
-            if (zoneWindow->layer_index < layer_index) {
-                workspace()->constrain(current, item->window());
+            if (current == item->window()) {
+                continue;
+            }
+            if (item->layer_index < layer_index) {
                 workspace()->unconstrain(item->window(), current);
-            } else if (zoneWindow->layer_index > layer_index) {
-                workspace()->constrain(item->window(), current);
+                workspace()->constrain(current, item->window());
+            } else if (item->layer_index > layer_index) {
                 workspace()->unconstrain(current, item->window());
-            } else if (zoneWindow->layer_index == layer_index) {
+                workspace()->constrain(item->window(), current);
+            } else if (item->layer_index == layer_index) {
                 workspace()->unconstrain(current, item->window());
                 workspace()->unconstrain(item->window(), current);
             }
