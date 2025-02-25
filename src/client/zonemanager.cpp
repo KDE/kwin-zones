@@ -64,6 +64,9 @@ void ZoneItem::manageSurface()
         if (m_layerIndex) {
             m_zone->set_layer(object(), *m_layerIndex);
         }
+        if (m_requestedPosition) {
+            m_zone->set_position(object(), m_requestedPosition->x(), m_requestedPosition->y());
+        }
     }
 }
 
@@ -106,6 +109,17 @@ qint32 ZoneItem::layerIndex() const
     return m_layerIndex.value_or(0);
 }
 
+void ZoneItem::requestPosition(const QPoint &point)
+{
+    m_requestedPosition = point;
+    Q_EMIT requestedPositionChanged();
+    if (!isInitialized()) {
+        return;
+    }
+
+    qCDebug(KWINZONES_CLIENT) << "requesting in" << zone() << "geometry" << point;
+    m_zone->set_position(object(), point.x(), point.y());
+}
 
 ZoneItemAttached* ZoneItem::get()
 {

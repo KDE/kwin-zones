@@ -30,6 +30,7 @@ class ZoneItem : public QObject, public QtWayland::ext_zone_item_v1
     QML_ELEMENT
     Q_PROPERTY(QPoint position READ position NOTIFY positionChanged)
     Q_PROPERTY(qint32 layerIndex READ layerIndex WRITE setLayerIndex NOTIFY layerIndexChanged)
+    Q_PROPERTY(QPoint requestedPosition READ requestedPosition WRITE requestPosition NOTIFY requestedPositionChanged)
 public:
     ZoneItem(QWindow *window);
     ZoneItemAttached *get();
@@ -40,6 +41,11 @@ public:
     qint32 layerIndex() const;
     void setLayerIndex(qint32 layerIndex);
 
+    QPoint requestedPosition() const {
+        return m_requestedPosition.value_or(QPoint{});
+    }
+    void requestPosition(const QPoint &position);
+
     void updatePosition(ZoneZone *zone, const QPoint &position);
     QWindow *window() const { return m_window; }
     QPoint position() const;
@@ -48,6 +54,7 @@ Q_SIGNALS:
     void zoneChanged(ZoneZone *zone);
     void positionChanged();
     void layerIndexChanged(qint32 layerIndex);
+    void requestedPositionChanged();
 
 private:
     void manageSurface();
@@ -55,6 +62,7 @@ private:
     ZoneItemAttached *m_attached = nullptr;
     ZoneZone *m_zone = nullptr;
     std::optional<qint32> m_layerIndex;
+    std::optional<QPoint> m_requestedPosition;
 
     QWindow *const m_window;
     QPoint m_pos;
