@@ -58,6 +58,7 @@ Q_SIGNALS:
 
 private:
     void manageSurface();
+    void initZone();
 
     ZoneItemAttached *m_attached = nullptr;
     ZoneZone *m_zone = nullptr;
