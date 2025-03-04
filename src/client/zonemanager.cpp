@@ -59,14 +59,21 @@ void ZoneItem::manageSurface()
     ext_zone_item_v1_set_user_data(item, (QtWayland::ext_zone_item_v1 *) this);
     Q_ASSERT(isInitialized());
     if (m_zone) {
-        m_zone->add_item(object());
+        initZone();
+    }
+}
 
-        if (m_layerIndex) {
-            m_zone->set_layer(object(), *m_layerIndex);
-        }
-        if (m_requestedPosition) {
-            m_zone->set_position(object(), m_requestedPosition->x(), m_requestedPosition->y());
-        }
+void ZoneItem::initZone()
+{
+    Q_ASSERT(m_zone);
+    Q_ASSERT(object());
+    m_zone->add_item(object());
+
+    if (m_layerIndex) {
+        m_zone->set_layer(object(), *m_layerIndex);
+    }
+    if (m_requestedPosition) {
+        m_zone->set_position(object(), m_requestedPosition->x(), m_requestedPosition->y());
     }
 }
 
@@ -80,7 +87,7 @@ void ZoneItem::setZone(ZoneZone* zone)
     }
     m_zone = zone;
     if (m_zone && object()) {
-        m_zone->add_item(object());
+        initZone();
     }
     Q_EMIT zoneChanged(m_zone);
 }
