@@ -37,6 +37,9 @@ ZoneItem::ZoneItem(QWindow *window)
     connect(waylandWindow, &QNativeInterface::Private::QWaylandWindow::surfaceRoleCreated,
         this, &ZoneItem::manageSurface);
 #endif
+    if (window && window->isVisible()) {
+        manageSurface();
+    }
 }
 
 void ZoneItem::manageSurface()
