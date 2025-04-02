@@ -30,6 +30,7 @@ class ExtZoneV1Interface;
 
 class ExtZoneItemV1Interface : public QObject, public QtWaylandServer::ext_zone_item_v1
 {
+    Q_OBJECT
 public:
     ExtZoneItemV1Interface(XdgToplevelInterface *toplevel)
         : m_toplevel(toplevel)
@@ -56,12 +57,14 @@ public:
 
 class ExtZoneV1Interface : public QObject, public QtWaylandServer::ext_zone_v1
 {
+    Q_OBJECT
 public:
     ExtZoneV1Interface(const QRect &area, const QString &handle)
         : m_area(area)
         , m_handle(handle)
     {
         Q_ASSERT(!m_handle.isEmpty());
+        setObjectName(handle);
     }
 
     void ext_zone_v1_bind_resource(Resource *resource) override
@@ -76,7 +79,7 @@ public:
     {
         ExtZoneItemV1Interface *zoneItem = ExtZoneItemV1Interface::get(item);
         if (zoneItem->m_zone != this || !zoneItem->m_zone) {
-            qCDebug(KWINZONES) << "Could not find item in zone" << zoneItem->m_zone;
+            qCDebug(KWINZONES) << "Item not in the zone" << zoneItem << zoneItem->window()->caption() << zoneItem->m_zone;
             send_position_failed(resource->handle, item);
             return;
         }
@@ -184,6 +187,10 @@ private:
     void setThisZone(wl_resource *item) {
         auto w = ExtZoneItemV1Interface::get(item);
         Q_ASSERT(w);
+        if (w->m_zone == this) {
+            qCDebug(KWINZONES) << "Skip setting zone" << w << this;
+            return;
+        }
         if (w->m_zone && w->m_zone != this) {
             for (auto resource : w->m_zone->resourceMap()) {
                 w->m_zone->send_item_left(resource->handle, item);
@@ -306,3 +313,6 @@ ExtZoneItemV1Interface::~ExtZoneItemV1Interface() {
 }
 
 }
+
+#include "zones.moc"
+
