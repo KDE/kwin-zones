@@ -235,7 +235,7 @@ public:
         if (it == m_zoneWindows.constEnd()) {
             auto zoneWindow = new ExtZoneItemV1Interface(toplevel);
             it = m_zoneWindows.insert(toplevel,  zoneWindow);
-            connect(toplevel, &XdgToplevelInterface::aboutToBeDestroyed, zoneWindow, [this, toplevel] {
+            connect(toplevel, &XdgToplevelInterface::aboutToBeDestroyed, this, [this, toplevel] {
                 auto zoneWindow = m_zoneWindows.take(toplevel);
                 delete zoneWindow;
             });
