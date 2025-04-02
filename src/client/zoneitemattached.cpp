@@ -14,6 +14,7 @@ QML_DECLARE_TYPEINFO(ZoneItemAttached, QML_HAS_ATTACHED_PROPERTIES)
 ZoneItemAttached::ZoneItemAttached(ZoneItem* item)
     : m_item(item)
 {
+    connect(m_item, &ZoneItem::zoneChanged, this, &ZoneItemAttached::zoneChanged);
 }
 
 ZoneItemAttached* ZoneItemAttached::get(QWindow* window)
