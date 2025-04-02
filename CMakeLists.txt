@@ -15,6 +15,7 @@ include(GenerateExportHeader)
 
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
+include(KDEClangFormat)
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
@@ -47,5 +48,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(KWin 6.0 REQUIRED)
 
 add_subdirectory(src)
+
+# add clang-format target for all our real source files
+file(GLOB_RECURSE ALL_CLANG_FORMAT_SOURCE_FILES *.cpp *.h)
+kde_clang_format(${ALL_CLANG_FORMAT_SOURCE_FILES})
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
