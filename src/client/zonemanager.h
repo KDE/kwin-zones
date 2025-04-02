@@ -19,7 +19,11 @@ class ZoneManager : public QWaylandClientExtensionTemplate<ZoneManager>
 public:
     ZoneManager();
 
+    ZoneZone *fetchZone(QScreen *screen);
     static bool isActive();
+
+private:
+    QHash<QScreen *, ZoneZone *> m_zones;
 };
 
 class ZoneItemAttached;

@@ -17,6 +17,20 @@ ZoneManager::ZoneManager()
     : QWaylandClientExtensionTemplate<ZoneManager>(1)
 {
     initialize();
+    connect(qGuiApp, &QGuiApplication::screenRemoved, this, [this] (QScreen *screen) {
+        m_zones.remove(screen);
+    });
+}
+
+ZoneZone *ZoneManager::fetchZone(QScreen *screen)
+{
+    ZoneZone *&ret = m_zones[screen];
+    if (!ret) {
+        auto output = (::wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", screen);
+        Q_ASSERT(output);
+        ret = new ZoneZone(s_manager->get_zone(output));
+    }
+    return ret;
 }
 
 bool ZoneManager::isActive()
@@ -61,15 +75,18 @@ void ZoneItem::manageSurface()
     init(item);
     ext_zone_item_v1_set_user_data(item, (QtWayland::ext_zone_item_v1 *) this);
     Q_ASSERT(isInitialized());
-    if (m_zone) {
-        initZone();
-    }
+    initZone();
 }
 
 void ZoneItem::initZone()
 {
-    Q_ASSERT(m_zone);
     Q_ASSERT(object());
+
+    if (!m_zone) {
+        setZone(s_manager->fetchZone(m_window->screen()));
+        return;
+    }
+
     m_zone->add_item(object());
 
     if (m_layerIndex) {
@@ -95,13 +112,8 @@ void ZoneItem::setZone(ZoneZone* zone)
     Q_EMIT zoneChanged(m_zone);
 }
 
-ZoneZone* ZoneItem::zone()
+ZoneZone *ZoneItem::zone()
 {
-    if (!m_zone) {
-        auto output = (::wl_output *)QGuiApplication::platformNativeInterface()->nativeResourceForScreen("output", m_window->screen());
-        Q_ASSERT(output);
-        setZone(new ZoneZone(s_manager->get_zone(output)));
-    }
     return m_zone;
 }
 void ZoneItem::setLayerIndex(qint32 layerIndex)
