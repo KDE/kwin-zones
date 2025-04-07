@@ -8,6 +8,8 @@ set(QT_MIN_VERSION "6.4")
 set(KF_MIN_VERSION "6.0")
 set(KDE_COMPILERSETTINGS_LEVEL "5.82")
 
+option(ONLY_CLIENT_BUILD "Build only KWinZones QML Client Plugin" OFF)
+
 find_package(ECM ${KF_MIN_VERSION} REQUIRED NO_MODULE)
 
 include(FeatureSummary)
@@ -29,7 +31,14 @@ find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     Widgets
     WaylandClient
 )
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config)
+
+if (NOT ONLY_CLIENT_BUILD)
+    find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config)
+    find_package(KWin 6.0 REQUIRED)
+else()
+    find_package(WaylandScanner REQUIRED)
+endif()
+
 find_package(WaylandProtocols REQUIRED)
 find_package(Wayland 1.3 REQUIRED COMPONENTS Client)
 
@@ -45,12 +54,12 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(KWin 6.0 REQUIRED)
-
 add_subdirectory(src)
 
-# add clang-format target for all our real source files
-file(GLOB_RECURSE ALL_CLANG_FORMAT_SOURCE_FILES *.cpp *.h)
-kde_clang_format(${ALL_CLANG_FORMAT_SOURCE_FILES})
+if (NOT ONLY_CLIENT_BUILD)
+    # add clang-format target for all our real source files
+    file(GLOB_RECURSE ALL_CLANG_FORMAT_SOURCE_FILES *.cpp *.h)
+    kde_clang_format(${ALL_CLANG_FORMAT_SOURCE_FILES})
+endif()
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)
