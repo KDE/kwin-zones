@@ -193,13 +193,17 @@ private:
         }
         if (w->m_zone && w->m_zone != this) {
             for (auto resource : w->m_zone->resourceMap()) {
-                w->m_zone->send_item_left(resource->handle, item);
+                if (resource->client() == item->client) {
+                    w->m_zone->send_item_left(resource->handle, item);
+                }
             }
         }
         w->m_zone = this;
         m_items.insert(w);
         for (auto resource : resourceMap()) {
-            w->m_zone->send_item_entered(resource->handle, item);
+            if (resource->client() == item->client) {
+                w->m_zone->send_item_entered(resource->handle, item);
+            }
         }
     }
     void addToZone(Window *w, int layer);
