@@ -121,6 +121,7 @@ public:
 
         w->setObjectName("kwinzones");
         w->move(pos);
+        qCDebug(KWINZONES) << "Setting position. title:" << w->caption() << "zone:" << zoneWindow->m_zone->m_handle << "position:" << pos << "new-position:" << w->frameGeometry();
     }
     void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *item, int32_t layer_index) override {
         ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
