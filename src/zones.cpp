@@ -84,7 +84,7 @@ public:
             return;
         }
 
-        auto w = waylandServer()->findWindow(zoneItem->m_toplevel->surface());
+        auto w = zoneItem->window();
         if (!w) {
             qCDebug(KWINZONES) << "Could not find item" << zoneItem->m_toplevel << zoneItem << zoneItem->m_toplevel->surface();
             send_position_failed(resource->handle, item);
@@ -106,7 +106,7 @@ public:
             return;
         }
 
-        auto w = waylandServer()->findWindow(zoneWindow->m_toplevel->surface());
+        auto w = zoneWindow->window();
         if (!w) {
             qCDebug(KWINZONES) << "Could not find surface" << zoneWindow->m_toplevel;
             send_position_failed(resource->handle, item);
