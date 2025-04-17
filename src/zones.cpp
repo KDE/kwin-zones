@@ -118,6 +118,8 @@ public:
             send_position_failed(resource->handle, item);
             return;
         }
+
+        w->setObjectName("kwinzones");
         w->move(pos);
     }
     void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *item, int32_t layer_index) override {
@@ -128,9 +130,11 @@ public:
             return;
         }
 
+        auto current = zoneWindow->window();
+        current->setObjectName("kwinzones");
+
         zoneWindow->layer_index = layer_index;
         StackingUpdatesBlocker blocker(workspace());
-        auto current = zoneWindow->window();
         for (auto item : m_items) {
             if (current == item->window()) {
                 continue;
