@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024 Aleix Pol Gonzalez <aleix.pol_gonzalez@mercedes-benz.com>
+# SPDX-License-Identifier: CC0-1.0
+
 File=zonessettings.kcfg
 NameSpace=KWin
 ClassName=ZonesSettings
