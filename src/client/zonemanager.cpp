@@ -6,6 +6,7 @@
 
 #include <QGuiApplication>
 #include <QtWaylandClient/private/qwaylandwindow_p.h>
+#include <QPlatformSurfaceEvent>
 #include <qpa/qplatformnativeinterface.h>
 #include <qwayland-wayland.h>
 
@@ -42,19 +43,35 @@ ZoneItem::ZoneItem(QWindow *window)
     : QtWayland::ext_zone_item_v1()
     , m_window(window)
 {
+    Q_ASSERT(m_window);
     Q_ASSERT(m_window->isTopLevel());
 #if QT_VERSION < QT_VERSION_CHECK(6, 8, 0)
     connect(window, &QWindow::visibilityChanged, this, &ZoneItem::manageSurface, Qt::QueuedConnection);
 #else
-    auto waylandWindow = window->nativeInterface<QNativeInterface::Private::QWaylandWindow>();
-    Q_ASSERT(waylandWindow);
-    connect(waylandWindow, &QNativeInterface::Private::QWaylandWindow::surfaceRoleCreated,
-        this, &ZoneItem::manageSurface);
+    window->installEventFilter(this);
 #endif
-    if (window && window->isVisible()) {
+    if (window->isVisible()) {
         manageSurface();
     }
 }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+bool ZoneItem::eventFilter(QObject *watched, QEvent *event)
+{
+    auto window = qobject_cast<QWindow *>(watched);
+    if (!window) {
+        return false;
+    }
+    if (event->type() == QEvent::PlatformSurface) {
+        auto waylandWindow = window->nativeInterface<QNativeInterface::Private::QWaylandWindow>();
+        Q_ASSERT(waylandWindow);
+        connect(waylandWindow, &QNativeInterface::Private::QWaylandWindow::surfaceRoleCreated,
+                this, &ZoneItem::manageSurface);
+        window->removeEventFilter(this);
+    }
+    return false;
+}
+#endif
 
 void ZoneItem::manageSurface()
 {

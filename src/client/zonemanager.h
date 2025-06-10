@@ -61,6 +61,9 @@ Q_SIGNALS:
     void requestedPositionChanged();
 
 private:
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    bool eventFilter(QObject *watched, QEvent *event) override;
+#endif
     void manageSurface();
     void initZone();
 
