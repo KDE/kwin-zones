@@ -89,11 +89,7 @@ private:
     void ext_zone_v1_done() override { Q_EMIT done(); }
     void ext_zone_v1_item_entered(struct ::ext_zone_item_v1 */*item*/) override;
     void ext_zone_v1_item_left(struct ::ext_zone_item_v1 */*item*/) override {}
-    void ext_zone_v1_position(struct ::ext_zone_item_v1 *item, int32_t x, int32_t y) override {
-        auto www = dynamic_cast<ZoneItem *>(QtWayland::ext_zone_item_v1::fromObject(item));
-        Q_ASSERT(www);
-        www->updatePosition(this, {x, y});
-    }
+    void ext_zone_v1_position(struct ::ext_zone_item_v1 *item, int32_t x, int32_t y) override;
     void ext_zone_v1_position_failed(struct ::ext_zone_item_v1 *item) override;
 
     QSize m_size;

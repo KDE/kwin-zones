@@ -172,12 +172,31 @@ ZoneZone::ZoneZone(::ext_zone_v1* zone)
 
 void ZoneZone::ext_zone_v1_position_failed(ext_zone_item_v1* item)
 {
+    if (!item) [[unlikely]] {
+        qCDebug(KWINZONES_CLIENT) << "failed to position unknown item";
+        return;
+    }
     auto www = dynamic_cast<ZoneItem *>(QtWayland::ext_zone_item_v1::fromObject(item));
     qCDebug(KWINZONES_CLIENT) << "failed to position window" << item << www;
 }
 
 void ZoneZone::ext_zone_v1_item_entered(ext_zone_item_v1* item)
 {
+    if (!item) [[unlikely]] {
+        qCDebug(KWINZONES_CLIENT) << "unknown item entered";
+        return;
+    }
     qCDebug(KWINZONES_CLIENT) << "item entered" << QtWayland::ext_zone_item_v1::fromObject(item) << item;
     get_position(item);
+}
+
+void ZoneZone::ext_zone_v1_position(ext_zone_item_v1* item, int32_t x, int32_t y)
+{
+    if (!item) [[unlikely]] {
+        qCDebug(KWINZONES_CLIENT) << "unknown item's position" << x << y;
+        return;
+    }
+    auto www = dynamic_cast<ZoneItem *>(QtWayland::ext_zone_item_v1::fromObject(item));
+    Q_ASSERT(www);
+    www->updatePosition(this, {x, y});
 }
