@@ -80,7 +80,6 @@ public:
         ExtZoneItemV1Interface *zoneItem = ExtZoneItemV1Interface::get(item);
         if (!zoneItem) {
             qCDebug(KWINZONES) << "Zone Item not found" << item;
-            send_position_failed(resource->handle, item);
             return;
         }
         if (zoneItem->m_zone != this || !zoneItem->m_zone) {
