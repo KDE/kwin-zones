@@ -50,7 +50,7 @@ void ZoneItemAttached::requestPosition(const QPoint& point)
     Q_ASSERT(m_item);
     qCDebug(KWINZONES_CLIENT) << "requesting in" << zone() << point;
 
-    zone()->set_position(m_item->object(), point.x(), point.y());
+    m_item->requestPosition(point);
 }
 
 void ZoneItemAttached::setZone(ZoneZone* zone)
