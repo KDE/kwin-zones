@@ -78,6 +78,11 @@ public:
     void ext_zone_v1_get_position(Resource *resource, struct ::wl_resource *item) override
     {
         ExtZoneItemV1Interface *zoneItem = ExtZoneItemV1Interface::get(item);
+        if (!zoneItem) {
+            qCDebug(KWINZONES) << "Zone Item not found" << item;
+            send_position_failed(resource->handle, item);
+            return;
+        }
         if (zoneItem->m_zone != this || !zoneItem->m_zone) {
             qCDebug(KWINZONES) << "Item not in the zone" << zoneItem << zoneItem->window()->caption() << zoneItem->m_zone;
             send_position_failed(resource->handle, item);
@@ -125,6 +130,11 @@ public:
     }
     void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *item, int32_t layer_index) override {
         ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
+        if (!zoneWindow) {
+            qCDebug(KWINZONES) << "Zone Item not found" << item;
+            send_position_failed(resource->handle, item);
+            return;
+        }
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
             qCDebug(KWINZONES) << "Mismatched zone" << zoneWindow->m_zone;
             send_position_failed(resource->handle, item);
@@ -161,9 +171,11 @@ public:
     }
     void ext_zone_v1_remove_item(Resource *resource, struct ::wl_resource *item) override {
         auto w = ExtZoneItemV1Interface::get(item);
-        if (w) {
-            w->m_zone = nullptr;
+        if (!w) {
+            qCDebug(KWINZONES) << "Zone Item not found" << item;
+            return;
         }
+        w->m_zone = nullptr;
         send_item_left(resource->handle, item);
         StackingUpdatesBlocker blocker(workspace());
         for (auto item : m_items) {
@@ -191,8 +203,7 @@ public:
 private:
     void setThisZone(wl_resource *item) {
         auto w = ExtZoneItemV1Interface::get(item);
-        Q_ASSERT(w);
-        if (w->m_zone == this) {
+        if (!w || w->m_zone == this) {
             qCDebug(KWINZONES) << "Skip setting zone" << w << this;
             return;
         }
