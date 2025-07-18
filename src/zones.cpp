@@ -124,8 +124,16 @@ public:
         }
 
         w->setObjectName("kwinzones");
-        w->move(pos);
-        qCDebug(KWINZONES) << "Setting position. title:" << w->caption() << "zone:" << zoneWindow->m_zone->m_handle << "position:" << pos << "new-position:" << w->frameGeometry();
+        if (auto s = w->surface()) {
+            if (m_setPositionDelay) {
+                disconnect(m_setPositionDelay);
+            }
+
+            m_setPositionDelay = connect(s, &SurfaceInterface::committed, this, [w, pos, handle = zoneWindow->m_zone->m_handle] {
+                qCDebug(KWINZONES) << "Setting position. title:" << w->caption() << "zone:" << handle << "position:" << pos << "geometry:" << w->frameGeometry();
+                w->move(pos);
+            }, Qt::SingleShotConnection);
+        }
     }
     void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *item, int32_t layer_index) override {
         ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
@@ -227,6 +235,7 @@ private:
     QSet<ExtZoneItemV1Interface *> m_items;
     QRect m_area;
     const QString m_handle;
+    QMetaObject::Connection m_setPositionDelay;
 };
 
 class ExtZoneManagerV1Interface : public QObject, public QtWaylandServer::ext_zone_manager_v1
