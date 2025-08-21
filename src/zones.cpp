@@ -143,13 +143,15 @@ public:
             return;
         }
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
-            qCDebug(KWINZONES) << "Mismatched zone" << zoneWindow->m_zone;
+            qCDebug(KWINZONES) << "Different zone" << zoneWindow->m_zone << this;
             send_position_failed(resource->handle, item);
             return;
         }
 
         auto current = zoneWindow->window();
         current->setObjectName("kwinzones");
+
+        qCDebug(KWINZONES) << "Setting layer. title:" << current->caption() << "zone:" << zoneWindow->m_zone->m_handle << "layer:" << layer_index << "geometry:" << current->frameGeometry();
 
         zoneWindow->layer_index = layer_index;
         StackingUpdatesBlocker blocker(workspace());
