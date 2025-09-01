@@ -19,20 +19,9 @@ class KWIN_EXPORT KWinZonesFactory : public PluginFactory
 public:
     explicit KWinZonesFactory() = default;
 
-    std::unique_ptr<KWin::Plugin> create() const override;
-};
-
-std::unique_ptr<KWin::Plugin> KWinZonesFactory::create() const
-{
-    switch (kwinApp()->operationMode()) {
-    case Application::OperationModeX11:
-        return nullptr;
-    case Application::OperationModeXwayland:
-    case Application::OperationModeWaylandOnly:
+    std::unique_ptr<KWin::Plugin> create() const override {
         return std::make_unique<Zones>();
-    default:
-        return nullptr;
     }
-}
+};
 
 #include "main.moc"
