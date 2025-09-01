@@ -24,6 +24,7 @@ public:
 
 std::unique_ptr<KWin::Plugin> KWinZonesFactory::create() const
 {
+#ifdef KWIN_ZONES_SUPPORT_OPERATION_MODES
     switch (kwinApp()->operationMode()) {
     case Application::OperationModeX11:
         return nullptr;
@@ -33,6 +34,9 @@ std::unique_ptr<KWin::Plugin> KWinZonesFactory::create() const
     default:
         return nullptr;
     }
+#else
+    return std::make_unique<Zones>();
+#endif
 }
 
 #include "main.moc"

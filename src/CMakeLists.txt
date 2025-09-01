@@ -7,6 +7,10 @@ if (NOT ONLY_CLIENT_BUILD)
     kcoreaddons_add_plugin(KWinZones INSTALL_NAMESPACE "kwin/plugins")
     target_sources(KWinZones PRIVATE main.cpp zones.cpp)
 
+    if (KWin_VERSION VERSION_LESS "6.3.90")
+        target_compile_definitions(KWinZones PUBLIC KWIN_ZONES_SUPPORT_OPERATION_MODES)
+    endif()
+
     kconfig_add_kcfg_files(KWinZones zonessettings.kcfgc)
     ecm_add_qtwayland_server_protocol(KWinZones
         PROTOCOL ext-zones-v1.xml
