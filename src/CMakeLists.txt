@@ -12,6 +12,10 @@ if (NOT ONLY_CLIENT_BUILD)
         PROTOCOL ext-zones-v1.xml
         BASENAME ext-zones-v1
     )
+    ecm_add_qtwayland_server_protocol(KWinZones
+        PROTOCOL ${WaylandProtocols_DATADIR}/stable/xdg-shell/xdg-shell.xml
+        BASENAME xdg-shell
+    )
     ecm_qt_declare_logging_category(KWinZones
         HEADER kwinzonescompositorlogging.h
         IDENTIFIER KWINZONES
