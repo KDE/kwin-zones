@@ -32,11 +32,19 @@ class ExtZoneItemV1Interface : public QObject, public QtWaylandServer::ext_zone_
 {
     Q_OBJECT
 public:
-    ExtZoneItemV1Interface(XdgToplevelInterface *toplevel)
-        : m_toplevel(toplevel)
-    {}
+    explicit ExtZoneItemV1Interface(XdgToplevelInterface *toplevel, struct ::wl_client *client, uint32_t id, int version)
+        : ext_zone_item_v1(client, id, version)
+        , m_toplevel(toplevel)
+    {
+        connect(window(), &Window::frameGeometryChanged, this, &ExtZoneItemV1Interface::refreshPosition);
+    }
 
-    ~ExtZoneItemV1Interface();
+    ~ExtZoneItemV1Interface()
+    {
+        if (m_zone) {
+            m_zone->m_items.remove(this);
+        }
+    }
 
     static ExtZoneItemV1Interface *get(::wl_resource *resource)
     {
@@ -50,78 +58,35 @@ public:
         return waylandServer()->findWindow(m_toplevel->surface());
     }
 
-    int layer_index = 0;
-    XdgToplevelInterface *const m_toplevel;
-    ExtZoneV1Interface* m_zone = nullptr;
-};
-
-class ExtZoneV1Interface : public QObject, public QtWaylandServer::ext_zone_v1
-{
-    Q_OBJECT
-public:
-    ExtZoneV1Interface(const QRect &area, const QString &handle)
-        : m_area(area)
-        , m_handle(handle)
+    void constrainPosition(QRect &windowRect) const
     {
-        Q_ASSERT(!m_handle.isEmpty());
-        setObjectName(handle);
+        if (windowRect.left() > m_zone->m_area.right()) {
+            windowRect.moveLeft(m_zone->m_area.right() - windowRect.width());
+        }
+        if (windowRect.right() < m_zone->m_area.left()) {
+            windowRect.moveLeft(m_zone->m_area.left());
+        }
+        if (windowRect.top() > m_zone->m_area.bottom()) {
+            windowRect.moveTop(m_zone->m_area.bottom() - windowRect.height());
+        }
+        if (windowRect.bottom() < m_zone->m_area.top()) {
+            windowRect.moveTop(m_zone->m_area.top());
+        }
     }
 
-    void ext_zone_v1_bind_resource(Resource *resource) override
+    void ext_zone_item_v1_set_position(Resource *resource, int32_t x, int32_t y) override
     {
-        const QSizeF size = m_area.size();
-        send_size(resource->handle, size.width(), size.height());
-        send_handle(resource->handle, m_handle);
-        send_done(resource->handle);
-    }
-
-    void ext_zone_v1_get_position(Resource *resource, struct ::wl_resource *item) override
-    {
-        ExtZoneItemV1Interface *zoneItem = ExtZoneItemV1Interface::get(item);
-        if (!zoneItem) {
-            qCDebug(KWINZONES) << "Zone Item not found" << item;
-            return;
-        }
-        if (zoneItem->m_zone != this || !zoneItem->m_zone) {
-            qCDebug(KWINZONES) << "Item not in the zone" << zoneItem << zoneItem->window()->caption() << zoneItem->m_zone;
-            send_position_failed(resource->handle, item);
+        auto w = window();
+        if (!w || !m_zone) {
+            qCDebug(KWINZONES) << "set_position: Could not find surface" << m_toplevel << m_zone;
+            send_position_failed(resource->handle);
             return;
         }
 
-        auto w = zoneItem->window();
-        if (!w) {
-            qCDebug(KWINZONES) << "Could not find item" << zoneItem->m_toplevel << zoneItem << zoneItem->m_toplevel->surface();
-            send_position_failed(resource->handle, item);
-            return;
-        }
-        const QPointF pos = w->frameGeometry().topLeft() - m_area.topLeft();
-        send_position(resource->handle, item, pos.x(), pos.y());
-    }
-    void ext_zone_v1_set_position(Resource *resource, struct ::wl_resource *item, int32_t x, int32_t y) override
-    {
-        ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
-        if (!zoneWindow) {
-            // Can happen when shutting down
-            return;
-        }
-        if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
-            qCDebug(KWINZONES) << "Different zone" << zoneWindow->m_zone << this;
-            send_position_failed(resource->handle, item);
-            return;
-        }
-
-        auto w = zoneWindow->window();
-        if (!w) {
-            qCDebug(KWINZONES) << "Could not find surface" << zoneWindow->m_toplevel;
-            send_position_failed(resource->handle, item);
-            return;
-        }
-        const QPoint pos = QPoint(x, y) + m_area.topLeft();
-        if (!m_area.contains(pos)) {
-            qCDebug(KWINZONES) << "could not position toplevel" << m_area << pos << m_area;
-            send_position_failed(resource->handle, item);
-            return;
-        }
+        QRect windowRect = w->frameGeometry().toRect();
+        windowRect.moveTopLeft(QPoint(x, y));
+        constrainPosition(windowRect);
+        const QPoint pos = windowRect.topLeft();
 
         w->setObjectName("kwinzones");
         if (auto s = w->surface()) {
@@ -129,33 +94,27 @@ public:
                 disconnect(m_setPositionDelay);
             }
 
-            m_setPositionDelay = connect(s, &SurfaceInterface::committed, this, [w, pos, handle = zoneWindow->m_zone->m_handle] {
+            m_setPositionDelay = connect(s, &SurfaceInterface::committed, this, [w, pos, handle = m_zone->m_handle] {
                 qCDebug(KWINZONES) << "Setting position. title:" << w->caption() << "zone:" << handle << "position:" << pos << "geometry:" << w->frameGeometry();
                 w->move(pos);
             }, Qt::SingleShotConnection);
         }
     }
-    void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *item, int32_t layer_index) override {
-        ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
-        if (!zoneWindow) {
-            qCDebug(KWINZONES) << "Zone Item not found" << item;
-            send_position_failed(resource->handle, item);
-            return;
-        }
-        if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
-            qCDebug(KWINZONES) << "Different zone" << zoneWindow->m_zone << this;
-            send_position_failed(resource->handle, item);
-            return;
-        }
 
-        auto current = zoneWindow->window();
+    void ext_zone_item_v1_set_layer(Resource *resource, int32_t idx) override
+    {
+        Q_ASSERT(m_zone);
+        auto current = window();
+        if (!current || !m_zone) {
+            qCDebug(KWINZONES) << "set_layer: Could not find surface" << m_toplevel << m_zone;
+            send_position_failed(resource->handle);
+            return;
+        }
         current->setObjectName("kwinzones");
 
-        qCDebug(KWINZONES) << "Setting layer. title:" << current->caption() << "zone:" << zoneWindow->m_zone->m_handle << "layer:" << layer_index << "geometry:" << current->frameGeometry();
-
-        zoneWindow->layer_index = layer_index;
+        layer_index = idx;
         StackingUpdatesBlocker blocker(workspace());
-        for (auto item : m_items) {
+        for (auto item : m_zone->m_items) {
             if (current == item->window()) {
                 continue;
             }
@@ -172,73 +131,110 @@ public:
         }
     }
 
-    void ext_zone_v1_destroy(Resource *resource) override {
-        wl_resource_destroy(resource->handle);
-    }
-    void ext_zone_v1_add_item(Resource */*resource*/, struct ::wl_resource *item) override {
-        setThisZone(item);
-    }
-    void ext_zone_v1_remove_item(Resource *resource, struct ::wl_resource *item) override {
-        auto w = ExtZoneItemV1Interface::get(item);
+    void refreshPosition()
+    {
+        if (!m_zone) {
+            return;
+        }
+        auto w = window();
         if (!w) {
-            qCDebug(KWINZONES) << "Zone Item not found" << item;
+            qCWarning(KWINZONES) << "Could not refresh position, could not find the toplevel's window" << m_toplevel->title() << m_toplevel->appId();
             return;
         }
-        w->m_zone = nullptr;
-        send_item_left(resource->handle, item);
-        StackingUpdatesBlocker blocker(workspace());
-        for (auto item : m_items) {
-            workspace()->unconstrain(w->window(), item->window());
-            workspace()->unconstrain(item->window(), w->window());
+        const QMargins margins = w->frameMargins();
+        if (margins != m_currentMargins) {
+            m_currentMargins = margins;
+            send_frame_extents(margins.top(), margins.bottom(), margins.left(), margins.right());
         }
-        m_items.remove(w);
+
+        const QPointF pos = w->frameGeometry().topLeft() - m_zone->m_area.topLeft();
+        send_position(pos.x(), pos.y());
     }
 
-    void setArea(const QRect &area) {
-        if (m_area == area) {
-            return;
-        }
-
-        const bool sizeChange = m_area.size() != area.size();
-        m_area = area;
-        if (sizeChange) {
-            const auto clientResources = resourceMap();
-            for (auto r : clientResources) {
-                send_size(r->handle, m_area.width(), m_area.height());
-            }
-        }
-    }
-
-private:
-    void setThisZone(wl_resource *item) {
-        auto w = ExtZoneItemV1Interface::get(item);
-        if (!w || w->m_zone == this) {
-            qCDebug(KWINZONES) << "Skip setting zone" << w << this;
-            return;
-        }
-        if (w->m_zone && w->m_zone != this) {
-            for (auto resource : w->m_zone->resourceMap()) {
-                if (resource->client() == item->client) {
-                    w->m_zone->send_item_left(resource->handle, item);
-                }
-            }
-        }
-        w->m_zone = this;
-        m_items.insert(w);
-        for (auto resource : resourceMap()) {
-            if (resource->client() == item->client) {
-                w->m_zone->send_item_entered(resource->handle, item);
-            }
-        }
-    }
-    void addToZone(Window *w, int layer);
-
-    friend class ExtZoneItemV1Interface;
-    QSet<ExtZoneItemV1Interface *> m_items;
-    QRect m_area;
-    const QString m_handle;
+    int layer_index = 0;
+    XdgToplevelInterface *const m_toplevel;
+    ExtZoneV1Interface* m_zone = nullptr;
+    QMargins m_currentMargins;
     QMetaObject::Connection m_setPositionDelay;
 };
+
+
+void ExtZoneV1Interface::ext_zone_v1_remove_item(Resource* resource, struct ::wl_resource* item)
+{
+    auto w = ExtZoneItemV1Interface::get(item);
+    if (!w)
+    {
+        qCDebug(KWINZONES) << "Zone Item not found" << item;
+        return;
+    }
+    w->m_zone = nullptr;
+    send_item_left(resource->handle, item);
+    StackingUpdatesBlocker blocker(workspace());
+    for (auto item : m_items)
+    {
+        workspace()->unconstrain(w->window(), item->window());
+        workspace()->unconstrain(item->window(), w->window());
+    }
+    m_items.remove(w);
+}
+
+void ExtZoneV1Interface::setArea(const QRect& area)
+{
+    if (m_area == area)
+    {
+        return;
+    }
+
+    const bool sizeChange = m_area.size() != area.size();
+    m_area = area;
+    if (sizeChange)
+    {
+        const auto clientResources = resourceMap();
+        for (auto r : clientResources)
+        {
+            send_size(r->handle, m_area.width(), m_area.height());
+        }
+    }
+}
+
+void ExtZoneV1Interface::setThisZone(wl_resource* item)
+{
+    auto w = ExtZoneItemV1Interface::get(item);
+    if (!w || w->m_zone == this)
+    {
+        qCDebug(KWINZONES) << "Skip setting zone" << w << this;
+        return;
+    }
+    if (w->m_zone && w->m_zone != this)
+    {
+        for (auto resource : w->m_zone->resourceMap())
+        {
+            if (resource->client() == item->client)
+            {
+                w->m_zone->send_item_left(resource->handle, item);
+            }
+        }
+    }
+    w->m_zone = this;
+    m_items.insert(w);
+    for (auto resource : resourceMap())
+    {
+        if (resource->client() == item->client)
+        {
+            w->m_zone->send_item_entered(resource->handle, item);
+        }
+    }
+
+    auto window = w->window();
+    if (window)
+    {
+        w->m_currentMargins = window->frameMargins();
+        w->send_frame_extents(w->m_currentMargins.top(), w->m_currentMargins.bottom(), w->m_currentMargins.left(), w->m_currentMargins.right());
+
+        const QPointF pos = window->frameGeometry().topLeft() - m_area.topLeft();
+        w->send_position(pos.x(), pos.y());
+    }
+}
 
 class ExtZoneManagerV1Interface : public QObject, public QtWaylandServer::ext_zone_manager_v1
 {
@@ -262,15 +258,15 @@ public:
         }
 
         auto it = m_zoneWindows.constFind(toplevel);
-        if (it == m_zoneWindows.constEnd()) {
-            auto zoneWindow = new ExtZoneItemV1Interface(toplevel);
-            it = m_zoneWindows.insert(toplevel,  zoneWindow);
-            connect(toplevel, &XdgToplevelInterface::aboutToBeDestroyed, this, [this, toplevel] {
-                auto zoneWindow = m_zoneWindows.take(toplevel);
-                delete zoneWindow;
-            });
+        if (it != m_zoneWindows.constEnd()) {
+            wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "zone item already created");
+            return;
         }
-        (*it)->add(resource->client(), id, s_version);
+        auto zoneWindow = new ExtZoneItemV1Interface(toplevel, resource->client(), id, s_version);
+        m_zoneWindows.insert(toplevel,  zoneWindow);
+        connect(toplevel, &XdgToplevelInterface::aboutToBeDestroyed, this, [this, toplevel] {
+            delete m_zoneWindows.take(toplevel);
+        });
     }
 
     void ext_zone_manager_v1_get_zone(Resource *resource, uint32_t id, struct ::wl_resource *outputResource) override
@@ -308,6 +304,7 @@ public:
         (*it)->add(resource->client(), id, s_version);
     }
 
+
     void ext_zone_manager_v1_get_zone_from_handle(Resource *resource, uint32_t id, const QString & handle) override
     {
         auto it = m_zones.constFind(handle);
@@ -334,12 +331,6 @@ public:
 Zones::Zones()
     : m_extZones(new ExtZoneManagerV1Interface(waylandServer()->display(), this))
 {
-}
-
-ExtZoneItemV1Interface::~ExtZoneItemV1Interface() {
-    if (m_zone) {
-        m_zone->m_items.remove(this);
-    }
 }
 
 }

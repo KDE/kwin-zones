@@ -20,7 +20,19 @@ public:
     explicit KWinZonesFactory() = default;
 
     std::unique_ptr<KWin::Plugin> create() const override {
+#ifdef KWIN_ZONES_SUPPORT_OPERATION_MODES
+        switch (kwinApp()->operationMode()) {
+        case Application::OperationModeX11:
+            return nullptr;
+        case Application::OperationModeXwayland:
+        case Application::OperationModeWaylandOnly:
+            return std::make_unique<Zones>();
+        default:
+            return nullptr;
+        }
+#else
         return std::make_unique<Zones>();
+#endif
     }
 };
 

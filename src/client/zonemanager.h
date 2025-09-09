@@ -64,6 +64,9 @@ private:
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     bool eventFilter(QObject *watched, QEvent *event) override;
 #endif
+    void ext_zone_item_v1_position(int32_t x, int32_t y) override {
+        updatePosition(m_zone, {x, y});
+    }
     void manageSurface();
     void initZone();
 
@@ -92,8 +95,6 @@ private:
     void ext_zone_v1_done() override { Q_EMIT done(); }
     void ext_zone_v1_item_entered(struct ::ext_zone_item_v1 */*item*/) override;
     void ext_zone_v1_item_left(struct ::ext_zone_item_v1 */*item*/) override {}
-    void ext_zone_v1_position(struct ::ext_zone_item_v1 *item, int32_t x, int32_t y) override;
-    void ext_zone_v1_position_failed(struct ::ext_zone_item_v1 *item) override;
 
     QSize m_size;
     QString m_handle;
