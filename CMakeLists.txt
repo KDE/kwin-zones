@@ -28,8 +28,10 @@ include(ECMSetupQtPluginMacroNames)
 find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     Core
     Gui
+    GuiPrivate
     Widgets
     WaylandClient
+    WaylandClientPrivate
 )
 
 if (NOT ONLY_CLIENT_BUILD)
