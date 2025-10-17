@@ -1,3 +1,8 @@
+<!--
+  - SPDX-FileCopyrightText: None
+  - SPDX-License-Identifier: CC0-1.0
+-->
+
 # ext-zones for KWin
 
 Here you can find an implementation of the ext-zones protocol for KWin.
