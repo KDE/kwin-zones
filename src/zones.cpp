@@ -83,18 +83,19 @@ public:
             return;
         }
         if (zoneItem->m_zone != this || !zoneItem->m_zone) {
-            qCDebug(KWINZONES) << "Item not in the zone" << zoneItem << zoneItem->window()->caption() << zoneItem->m_zone;
+            qCDebug(KWINZONES) << "Item not in the zone, so not sending position" << zoneItem << zoneItem->window()->caption() << zoneItem->m_zone;
             send_position_failed(resource->handle, item);
             return;
         }
 
         auto w = zoneItem->window();
         if (!w) {
-            qCDebug(KWINZONES) << "Could not find item" << zoneItem->m_toplevel << zoneItem << zoneItem->m_toplevel->surface();
+            qCDebug(KWINZONES) << "Could not find item so not sending position" << zoneItem->m_toplevel << zoneItem << zoneItem->m_toplevel->surface();
             send_position_failed(resource->handle, item);
             return;
         }
         const QPointF pos = w->frameGeometry().topLeft() - m_area.topLeft();
+        qCDebug(KWINZONES) << "Sending position: " << zoneItem->m_toplevel << zoneItem->m_toplevel << zoneItem << zoneItem->m_toplevel->surface() << pos;
         send_position(resource->handle, item, pos.x(), pos.y());
     }
     void ext_zone_v1_set_position(Resource *resource, struct ::wl_resource *item, int32_t x, int32_t y) override
@@ -102,6 +103,7 @@ public:
         ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
         if (!zoneWindow) {
             // Can happen when shutting down
+            qCDebug(KWINZONES) << "Set position has been called for non existing item";
             return;
         }
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
@@ -112,13 +114,13 @@ public:
 
         auto w = zoneWindow->window();
         if (!w) {
-            qCDebug(KWINZONES) << "Could not find surface" << zoneWindow->m_toplevel;
+            qCDebug(KWINZONES) << "Could not find surface, so not sending position" << zoneWindow->m_toplevel;
             send_position_failed(resource->handle, item);
             return;
         }
         const QPoint pos = QPoint(x, y) + m_area.topLeft();
         if (!m_area.contains(pos)) {
-            qCDebug(KWINZONES) << "could not position toplevel" << m_area << pos << m_area;
+            qCDebug(KWINZONES) << "could not position toplevel, so not sending position" << m_area << pos << m_area;
             send_position_failed(resource->handle, item);
             return;
         }
@@ -126,24 +128,28 @@ public:
         w->setObjectName("kwinzones");
         if (auto s = w->surface()) {
             if (m_setPositionDelay) {
+                qCDebug(KWINZONES) << "Disconnecting connection to set position for: " << w->caption();
                 disconnect(m_setPositionDelay);
             }
-
             m_setPositionDelay = connect(s, &SurfaceInterface::committed, this, [w, pos, handle = zoneWindow->m_zone->m_handle] {
-                qCDebug(KWINZONES) << "Setting position. title:" << w->caption() << "zone:" << handle << "position:" << pos << "geometry:" << w->frameGeometry();
+                qCDebug(KWINZONES) << "Executing Setting position. title:" << w->caption() << "zone:" << handle << "position:" << pos << "geometry:" << w->frameGeometry();
                 w->move(pos);
             }, Qt::SingleShotConnection);
+            qCDebug(KWINZONES) << "Connection to set position: " << m_setPositionDelay;
+            qCDebug(KWINZONES) << "Conecting connection for set position " << w->caption();
+        } else {
+            qCDebug(KWINZONES) << "Cannot set position, as there is no surface for " << w->caption();
         }
     }
     void ext_zone_v1_set_layer(Resource *resource, struct ::wl_resource *item, int32_t layer_index) override {
         ExtZoneItemV1Interface *zoneWindow = ExtZoneItemV1Interface::get(item);
         if (!zoneWindow) {
-            qCDebug(KWINZONES) << "Zone Item not found" << item;
+            qCDebug(KWINZONES) << "Zone Item not found so not sending position" << item;
             send_position_failed(resource->handle, item);
             return;
         }
         if (zoneWindow->m_zone != this || !zoneWindow->m_zone) {
-            qCDebug(KWINZONES) << "Different zone" << zoneWindow->m_zone << this;
+            qCDebug(KWINZONES) << "Mismatched zone so not sending position" << zoneWindow->m_zone << this;
             send_position_failed(resource->handle, item);
             return;
         }
@@ -184,6 +190,7 @@ public:
             qCDebug(KWINZONES) << "Zone Item not found" << item;
             return;
         }
+        qCDebug(KWINZONES) << "ext_zone_v1_remove_item called for: " << item;
         w->m_zone = nullptr;
         send_item_left(resource->handle, item);
         StackingUpdatesBlocker blocker(workspace());
@@ -206,6 +213,8 @@ public:
             for (auto r : clientResources) {
                 send_size(r->handle, m_area.width(), m_area.height());
             }
+        } else {
+            qCDebug(KWINZONES) << "Not able to set size as it is has the same size";
         }
     }
 
@@ -297,7 +306,8 @@ public:
         auto it = m_zones.constFind(handle);
         if (it == m_zones.constEnd()) {
             auto zone = new ExtZoneV1Interface(output->geometry(), handle);
-            connect(output, &Output::geometryChanged, zone, [zone, output] {
+            connect(output, &Output::geometryChanged, zone, [zone, output, handle] {
+                qCDebug(KWINZONES) << "Geometry changed for: " << handle;
                 zone->setArea(output->geometry());
             });
             connect(output, &Output::aboutToTurnOff, this, [this, output] {
@@ -317,7 +327,9 @@ public:
             static auto watcher = KConfigWatcher::create(cfgZones);
             auto zone = new ExtZoneV1Interface(grp.readEntry(handle, QRect()), handle);
             connect(watcher.get(), &KConfigWatcher::configChanged, zone, [handle, zone] (const KConfigGroup &group, const QByteArrayList &names) {
+                qCDebug(KWINZONES) << "Geometry changed for: " << handle;
                 if (!names.contains(handle)) {
+                    qCDebug(KWINZONES) << "But not in names :(, returning";
                     return;
                 }
                 zone->setArea(group.readEntry(handle, QRect()));
