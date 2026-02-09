@@ -36,7 +36,7 @@ find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
 
 if (NOT ONLY_CLIENT_BUILD)
     find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config)
-    find_package(KWin 6.0 REQUIRED)
+    find_package(KWin 6.6 REQUIRED)
 else()
     find_package(WaylandScanner REQUIRED)
 endif()

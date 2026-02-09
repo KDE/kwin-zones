@@ -293,11 +293,12 @@ public:
         auto it = m_zones.constFind(handle);
         if (it == m_zones.constEnd()) {
             auto zone = new ExtZoneV1Interface(output->geometry(), handle);
-            connect(output, &Output::geometryChanged, zone, [zone, output] {
+            connect(output, &LogicalOutput::geometryChanged, zone, [zone, output] {
                 zone->setArea(output->geometry());
             });
-            connect(output, &Output::aboutToTurnOff, this, [this, output] {
-                delete m_zones.take(output->name());
+            connect(workspace(), &Workspace::outputRemoved, this, [this, handle] (LogicalOutput *output) {
+                if (handle == output->name())
+                    delete m_zones.take(output->name());
             });
             it = m_zones.insert(handle, zone);
         }
@@ -336,4 +337,3 @@ Zones::Zones()
 }
 
 #include "zones.moc"
-
