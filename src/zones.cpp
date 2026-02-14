@@ -14,6 +14,7 @@
 #include <wayland/surface.h>
 #include <wayland/xdgshell.h>
 #include <utils/resource.h>
+#include <virtualdesktops.h>
 #include "workspace.h"
 #include "wayland_server.h"
 #include "window.h"
@@ -261,9 +262,11 @@ public:
         const auto handle = output->name();
         auto it = m_zones.constFind(handle);
         if (it == m_zones.constEnd()) {
-            auto zone = new ExtZoneV1Interface(output->geometry(), handle);
+            const QRectF geometry = workspace()->clientArea(PlacementArea, output, VirtualDesktopManager::self()->currentDesktop());
+            auto zone = new ExtZoneV1Interface(geometry.toRect(), handle);
             connect(output, &LogicalOutput::geometryChanged, zone, [zone, output] {
-                zone->setArea(output->geometry());
+                const QRectF geometry = workspace()->clientArea(PlacementArea, output, VirtualDesktopManager::self()->currentDesktop());
+                zone->setArea(geometry.toRect());
             });
             connect(workspace(), &Workspace::outputRemoved, this, [this, handle] (LogicalOutput *output) {
                 if (handle == output->name())
