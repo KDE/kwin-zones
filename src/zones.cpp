@@ -5,7 +5,7 @@
 */
 
 #include "zones.h"
-#include "qwayland-server-ext-zones-v1.h"
+#include "qwayland-server-xx-zones-v1.h"
 
 #include <wayland/clientconnection.h>
 #include <wayland/display.h>
@@ -28,12 +28,12 @@ namespace KWin
 static const int s_version = 1;
 class ExtZoneV1Interface;
 
-class ExtZoneItemV1Interface : public QObject, public QtWaylandServer::ext_zone_item_v1
+class ExtZoneItemV1Interface : public QObject, public QtWaylandServer::xx_zone_item_v1
 {
     Q_OBJECT
 public:
     explicit ExtZoneItemV1Interface(XdgToplevelInterface *toplevel, struct ::wl_client *client, uint32_t id, int version)
-        : ext_zone_item_v1(client, id, version)
+        : xx_zone_item_v1(client, id, version)
         , m_toplevel(toplevel)
     {
         connect(window(), &Window::frameGeometryChanged, this, &ExtZoneItemV1Interface::refreshPosition);
@@ -74,7 +74,7 @@ public:
         }
     }
 
-    void ext_zone_item_v1_set_position(Resource *resource, int32_t x, int32_t y) override
+    void xx_zone_item_v1_set_position(Resource *resource, int32_t x, int32_t y) override
     {
         auto w = window();
         if (!w || !m_zone) {
@@ -101,36 +101,6 @@ public:
         }
     }
 
-    void ext_zone_item_v1_set_layer(Resource *resource, int32_t idx) override
-    {
-        Q_ASSERT(m_zone);
-        auto current = window();
-        if (!current || !m_zone) {
-            qCDebug(KWINZONES) << "set_layer: Could not find surface" << m_toplevel << m_zone;
-            send_position_failed(resource->handle);
-            return;
-        }
-        current->setObjectName("kwinzones");
-
-        layer_index = idx;
-        StackingUpdatesBlocker blocker(workspace());
-        for (auto item : m_zone->m_items) {
-            if (current == item->window()) {
-                continue;
-            }
-            if (item->layer_index < layer_index) {
-                workspace()->unconstrain(item->window(), current);
-                workspace()->constrain(current, item->window());
-            } else if (item->layer_index > layer_index) {
-                workspace()->unconstrain(current, item->window());
-                workspace()->constrain(item->window(), current);
-            } else if (item->layer_index == layer_index) {
-                workspace()->unconstrain(current, item->window());
-                workspace()->unconstrain(item->window(), current);
-            }
-        }
-    }
-
     void refreshPosition()
     {
         if (!m_zone) {
@@ -151,7 +121,6 @@ public:
         send_position(pos.x(), pos.y());
     }
 
-    int layer_index = 0;
     XdgToplevelInterface *const m_toplevel;
     ExtZoneV1Interface* m_zone = nullptr;
     QMargins m_currentMargins;
@@ -159,7 +128,7 @@ public:
 };
 
 
-void ExtZoneV1Interface::ext_zone_v1_remove_item(Resource* resource, struct ::wl_resource* item)
+void ExtZoneV1Interface::xx_zone_v1_remove_item(Resource* resource, struct ::wl_resource* item)
 {
     auto w = ExtZoneItemV1Interface::get(item);
     if (!w)
@@ -236,30 +205,30 @@ void ExtZoneV1Interface::setThisZone(wl_resource* item)
     }
 }
 
-class ExtZoneManagerV1Interface : public QObject, public QtWaylandServer::ext_zone_manager_v1
+class ExtZoneManagerV1Interface : public QObject, public QtWaylandServer::xx_zone_manager_v1
 {
 public:
     ExtZoneManagerV1Interface(Display *display, QObject *parent)
         : QObject(parent)
-        , ext_zone_manager_v1(*display, s_version)
+        , xx_zone_manager_v1(*display, s_version)
     {
     }
 
-    void ext_zone_manager_v1_destroy(Resource *resource) override {
+    void xx_zone_manager_v1_destroy(Resource *resource) override {
         wl_resource_destroy(resource->handle);
     }
 
-    void ext_zone_manager_v1_get_zone_item(Resource *resource, uint32_t id, struct ::wl_resource *toplevelResource) override
+    void xx_zone_manager_v1_get_zone_item(Resource *resource, uint32_t id, struct ::wl_resource *toplevelResource) override
     {
         XdgToplevelInterface *toplevel = XdgToplevelInterface::get(toplevelResource);
         if (!toplevel) {
-            wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "xdg-toplevel object not found");
+            wl_resource_post_error(resource->handle, QtWaylandServer::xx_zone_v1::error_invalid, "xdg-toplevel object not found");
             return;
         }
 
         auto it = m_zoneWindows.constFind(toplevel);
         if (it != m_zoneWindows.constEnd()) {
-            wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "zone item already created");
+            wl_resource_post_error(resource->handle, QtWaylandServer::xx_zone_v1::error_invalid, "zone item already created");
             return;
         }
         auto zoneWindow = new ExtZoneItemV1Interface(toplevel, resource->client(), id, s_version);
@@ -269,7 +238,7 @@ public:
         });
     }
 
-    void ext_zone_manager_v1_get_zone(Resource *resource, uint32_t id, struct ::wl_resource *outputResource) override
+    void xx_zone_manager_v1_get_zone(Resource *resource, uint32_t id, struct ::wl_resource *outputResource) override
     {
         OutputInterface *outputIface = nullptr;
 
@@ -284,7 +253,7 @@ public:
         }
 
         if (!outputIface) {
-            wl_resource_post_error(resource->handle, QtWaylandServer::ext_zone_v1::error_invalid, "output object not found");
+            wl_resource_post_error(resource->handle, QtWaylandServer::xx_zone_v1::error_invalid, "output object not found");
             return;
         }
 
@@ -306,7 +275,7 @@ public:
     }
 
 
-    void ext_zone_manager_v1_get_zone_from_handle(Resource *resource, uint32_t id, const QString & handle) override
+    void xx_zone_manager_v1_get_zone_from_handle(Resource *resource, uint32_t id, const QString & handle) override
     {
         auto it = m_zones.constFind(handle);
         static const KSharedConfig::Ptr cfgZones = KSharedConfig::openConfig("kwinzonesrc");

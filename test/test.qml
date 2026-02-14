@@ -39,7 +39,6 @@ ApplicationWindow {
                         const point = Qt.point(centerX + radius * Math.cos(angle) - movingWindow.width / 2,
                                             centerY + radius * Math.sin(angle) - movingWindow.height / 2);
                         movingWindow.ZoneItemAttached.requestPosition(point)
-                        movingWindow.ZoneItemAttached.item.layerIndex = Math.sin((angle * modelData) / rep.model) * rep.model
                     }
                 }
             }

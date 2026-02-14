@@ -12,7 +12,6 @@ Window {
    height: 720
    transientParent: null
    ZoneItemAttached.zone: _loader.item ? _loader.item.ZoneItemAttached.zone : null
-   ZoneItemAttached.item.layerIndex: 120
    ZoneItemAttached.item.requestedPosition: Qt.point(0, 0)
 
    Rectangle {
@@ -31,7 +30,6 @@ Window {
             width: 7680
             height: 1260
             title: "Background"
-            ZoneItemAttached.item.layerIndex: 1000
             ZoneItemAttached.item.requestedPosition: Qt.point(0, 0)
 
             Rectangle {

@@ -11,7 +11,7 @@ target_link_libraries(QtZonesQuick PRIVATE Qt::Qml Qt::WaylandClient Qt::GuiPriv
 qt6_generate_wayland_protocol_client_sources(QtZonesQuick FILES
     ${Wayland_DATADIR}/wayland.xml
     ${WaylandProtocols_DATADIR}/stable/xdg-shell/xdg-shell.xml
-    ${CMAKE_SOURCE_DIR}/src/ext-zones-v1.xml
+    ${CMAKE_SOURCE_DIR}/src/xx-zones-v1.xml
 )
 ecm_qt_declare_logging_category(QtZonesQuick
     HEADER kwinzonesclientlogging.h

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 // Useful to test z-ordering
-// To use, run as: qml single.qml -- layerIndex labelText
+// To use, run as: qml single.qml -- labelText
 // e.g.: qml single.qml -- 2 UI3
 
 import QtQuick
@@ -15,7 +15,6 @@ ApplicationWindow {
     width: 200
     height: 200
     title: Qt.application.arguments[Qt.application.arguments.length - 1]
-    ZoneItemAttached.item.layerIndex: parseInt(Qt.application.arguments[Qt.application.arguments.length - 2])
 
 
     Rectangle {

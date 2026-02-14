@@ -13,8 +13,8 @@ if (NOT ONLY_CLIENT_BUILD)
 
     kconfig_add_kcfg_files(KWinZones zonessettings.kcfgc)
     ecm_add_qtwayland_server_protocol(KWinZones
-        PROTOCOL ext-zones-v1.xml
-        BASENAME ext-zones-v1
+        PROTOCOL xx-zones-v1.xml
+        BASENAME xx-zones-v1
     )
     ecm_add_qtwayland_server_protocol(KWinZones
         PROTOCOL ${WaylandProtocols_DATADIR}/stable/xdg-shell/xdg-shell.xml

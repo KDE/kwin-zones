@@ -14,7 +14,6 @@ Item {
         width: 7680
         height: 1260
         title: "Background"
-        ZoneItemAttached.item.layerIndex: 1000
         ZoneItemAttached.item.requestedPosition: Qt.point(0, 0)
 
         Rectangle {
@@ -30,7 +29,6 @@ Item {
         height: 720
         transientParent: null
         ZoneItemAttached.zone: main.ZoneItemAttached.zone
-        ZoneItemAttached.item.layerIndex: 123
         ZoneItemAttached.item.requestedPosition: Qt.point(0, 0)
 
         Rectangle {
@@ -46,7 +44,6 @@ Item {
         height: 500
         transientParent: null
         ZoneItemAttached.zone: main.ZoneItemAttached.zone
-        ZoneItemAttached.item.layerIndex: 100
         ZoneItemAttached.item.requestedPosition: Qt.point(1920, 0)
 
         Rectangle {
@@ -62,7 +59,6 @@ Item {
         height: 500
         transientParent: null
         ZoneItemAttached.zone: main.ZoneItemAttached.zone
-        ZoneItemAttached.item.layerIndex: 100
         ZoneItemAttached.item.requestedPosition: Qt.point(1920 + 3000, 0)
 
         Rectangle {

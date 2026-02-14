@@ -40,7 +40,7 @@ bool ZoneManager::isActive()
 }
 
 ZoneItem::ZoneItem(QWindow *window)
-    : QtWayland::ext_zone_item_v1()
+    : QtWayland::xx_zone_item_v1()
     , m_window(window)
 {
     Q_ASSERT(m_window);
@@ -88,9 +88,9 @@ void ZoneItem::manageSurface()
         return;
     }
 
-    ::ext_zone_item_v1 *item = s_manager->get_zone_item(tl);
+    ::xx_zone_item_v1 *item = s_manager->get_zone_item(tl);
     init(item);
-    ext_zone_item_v1_set_user_data(item, (QtWayland::ext_zone_item_v1 *) this);
+    xx_zone_item_v1_set_user_data(item, (QtWayland::xx_zone_item_v1 *) this);
     Q_ASSERT(isInitialized());
     initZone();
 }
@@ -106,9 +106,6 @@ void ZoneItem::initZone()
 
     m_zone->add_item(object());
 
-    if (m_layerIndex) {
-        set_layer(*m_layerIndex);
-    }
     if (m_requestedPosition) {
         set_position(m_requestedPosition->x(), m_requestedPosition->y());
     }
@@ -132,20 +129,6 @@ void ZoneItem::setZone(ZoneZone* zone)
 ZoneZone *ZoneItem::zone()
 {
     return m_zone;
-}
-void ZoneItem::setLayerIndex(qint32 layerIndex)
-{
-    if (m_layerIndex != layerIndex) {
-        m_layerIndex = layerIndex;
-        if (object()) {
-            set_layer(layerIndex);
-        }
-    }
-}
-
-qint32 ZoneItem::layerIndex() const
-{
-    return m_layerIndex.value_or(0);
 }
 
 void ZoneItem::requestPosition(const QPoint &point)
@@ -182,16 +165,16 @@ QPoint ZoneItem::position() const
     return m_pos;
 }
 
-ZoneZone::ZoneZone(::ext_zone_v1* zone)
-    : QtWayland::ext_zone_v1(zone)
+ZoneZone::ZoneZone(::xx_zone_v1* zone)
+    : QtWayland::xx_zone_v1(zone)
 {
 }
 
-void ZoneZone::ext_zone_v1_item_entered(ext_zone_item_v1* item)
+void ZoneZone::xx_zone_v1_item_entered(xx_zone_item_v1* item)
 {
     if (!item) [[unlikely]] {
         qCDebug(KWINZONES_CLIENT) << "unknown item entered";
         return;
     }
-    qCDebug(KWINZONES_CLIENT) << "item entered" << QtWayland::ext_zone_item_v1::fromObject(item) << item;
+    qCDebug(KWINZONES_CLIENT) << "item entered" << QtWayland::xx_zone_item_v1::fromObject(item) << item;
 }

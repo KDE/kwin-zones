@@ -10,7 +10,7 @@
 #include <QSet>
 
 #include <plugin.h>
-#include "qwayland-server-ext-zones-v1.h"
+#include "qwayland-server-xx-zones-v1.h"
 
 namespace KWin
 {
@@ -27,7 +27,7 @@ private:
     ExtZoneManagerV1Interface *const m_extZones;
 };
 
-class ExtZoneV1Interface : public QObject, public QtWaylandServer::ext_zone_v1
+class ExtZoneV1Interface : public QObject, public QtWaylandServer::xx_zone_v1
 {
     Q_OBJECT
 
@@ -40,7 +40,7 @@ public:
         setObjectName(handle);
     }
 
-    void ext_zone_v1_bind_resource(Resource* resource) override
+    void xx_zone_v1_bind_resource(Resource* resource) override
     {
         const QSizeF size = m_area.size();
         send_size(resource->handle, size.width(), size.height());
@@ -48,17 +48,17 @@ public:
         send_done(resource->handle);
     }
 
-    void ext_zone_v1_destroy(Resource* resource) override
+    void xx_zone_v1_destroy(Resource* resource) override
     {
         wl_resource_destroy(resource->handle);
     }
 
-    void ext_zone_v1_add_item(Resource*/*resource*/, struct ::wl_resource* item) override
+    void xx_zone_v1_add_item(Resource*/*resource*/, struct ::wl_resource* item) override
     {
         setThisZone(item);
     }
 
-    void ext_zone_v1_remove_item(Resource* resource, struct ::wl_resource* item) override;
+    void xx_zone_v1_remove_item(Resource* resource, struct ::wl_resource* item) override;
 
     void setArea(const QRect& area);
 

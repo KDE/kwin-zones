@@ -11,7 +11,6 @@ ApplicationWindow {
     width: 200
     height: 200
     title: "Bottom"
-    ZoneItemAttached.item.layerIndex: 1
 
 
     Rectangle {
@@ -33,7 +32,6 @@ ApplicationWindow {
         flags: Qt.WA_TranslucentBackground
         color: "transparent"
         ZoneItemAttached.zone: main.ZoneItemAttached.zone
-        ZoneItemAttached.item.layerIndex: 100
 
         Rectangle {
             color: topArea.pressed ? "red" : "green"

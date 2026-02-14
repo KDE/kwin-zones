@@ -5,7 +5,7 @@
 
 #include <QObject>
 #include <QtQmlIntegration>
-#include "qwayland-ext-zones-v1.h"
+#include "qwayland-xx-zones-v1.h"
 #include "zonemanager.h"
 
 class QWindow;
