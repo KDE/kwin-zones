@@ -37,7 +37,11 @@ public:
         : xx_zone_item_v1(client, id, version)
         , m_toplevel(toplevel)
     {
-        connect(window(), &Window::frameGeometryChanged, this, &ExtZoneItemV1Interface::refreshPosition);
+        auto w = window();
+        connect(w, &Window::frameGeometryChanged, this, &ExtZoneItemV1Interface::refreshPosition);
+        connect(w, &Window::closed, this, [this] {
+            send_closed();
+        });
     }
 
     ~ExtZoneItemV1Interface()
