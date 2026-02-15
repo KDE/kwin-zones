@@ -38,7 +38,7 @@ public:
         , m_toplevel(toplevel)
     {
         auto w = window();
-        connect(w, &Window::frameGeometryChanged, this, &ExtZoneItemV1Interface::refreshPosition);
+        connect(w, &Window::clientGeometryChanged, this, &ExtZoneItemV1Interface::refreshPosition);
         connect(w, &Window::closed, this, [this] {
             send_closed();
         });
