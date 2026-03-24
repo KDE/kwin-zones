@@ -9,6 +9,8 @@ if (NOT ONLY_CLIENT_BUILD)
 
     if (KWin_VERSION VERSION_LESS "6.3.90")
         target_compile_definitions(KWinZones PUBLIC KWIN_ZONES_SUPPORT_OPERATION_MODES)
+    elseif (KWin_VERSION VERSION_LESS "6.6.80")
+        target_compile_definitions(KWinZones PUBLIC KWIN_ZONES_SUPPORT_VIRTUAL_DESKTOP_STRUTS)
     endif()
 
     kconfig_add_kcfg_files(KWinZones zonessettings.kcfgc)

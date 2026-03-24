@@ -14,7 +14,6 @@
 #include <wayland/surface.h>
 #include <wayland/xdgshell.h>
 #include <utils/resource.h>
-#include <virtualdesktops.h>
 #include "workspace.h"
 #include "wayland_server.h"
 #include "window.h"
@@ -23,6 +22,10 @@
 #include <KConfigGroup>
 
 #include <kwinzonescompositorlogging.h>
+
+#ifdef KWIN_ZONES_SUPPORT_VIRTUAL_DESKTOP_STRUTS
+#include <virtualdesktops.h>
+#endif
 
 namespace KWin
 {
@@ -266,12 +269,21 @@ public:
         const auto handle = output->name();
         auto it = m_zones.constFind(handle);
         if (it == m_zones.constEnd()) {
+#if KWIN_ZONES_SUPPORT_VIRTUAL_DESKTOP_STRUTS
             const QRectF geometry = workspace()->clientArea(PlacementArea, output, VirtualDesktopManager::self()->currentDesktop());
             auto zone = new ExtZoneV1Interface(geometry.toRect(), handle);
             connect(output, &LogicalOutput::geometryChanged, zone, [zone, output] {
                 const QRectF geometry = workspace()->clientArea(PlacementArea, output, VirtualDesktopManager::self()->currentDesktop());
                 zone->setArea(geometry.toRect());
             });
+#else
+            const QRectF geometry = workspace()->clientArea(PlacementArea, output);
+            auto zone = new ExtZoneV1Interface(geometry.toRect(), handle);
+            connect(output, &LogicalOutput::geometryChanged, zone, [zone, output] {
+                const QRectF geometry = workspace()->clientArea(PlacementArea, output);
+                zone->setArea(geometry.toRect());
+            });
+#endif
             connect(workspace(), &Workspace::outputRemoved, this, [this, handle] (LogicalOutput *output) {
                 if (handle == output->name())
                     delete m_zones.take(output->name());
