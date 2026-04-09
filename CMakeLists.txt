@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 cmake_minimum_required(VERSION 3.16)
-project(kwin-zones VERSION 1.0.12)
+project(kwin-zones VERSION 1.0.13)
 
 set(QT_MIN_VERSION "6.4")
 set(KF_MIN_VERSION "6.0")
