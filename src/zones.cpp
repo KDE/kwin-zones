@@ -269,7 +269,7 @@ public:
         const auto handle = output->name();
         auto it = m_zones.constFind(handle);
         if (it == m_zones.constEnd()) {
-#if KWIN_ZONES_SUPPORT_VIRTUAL_DESKTOP_STRUTS
+#ifdef KWIN_ZONES_SUPPORT_VIRTUAL_DESKTOP_STRUTS
             const QRectF geometry = workspace()->clientArea(PlacementArea, output, VirtualDesktopManager::self()->currentDesktop());
             auto zone = new ExtZoneV1Interface(geometry.toRect(), handle);
             connect(output, &LogicalOutput::geometryChanged, zone, [zone, output] {
