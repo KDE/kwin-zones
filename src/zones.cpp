@@ -92,7 +92,7 @@ public:
         }
 
         QRect windowRect = w->frameGeometry().toRect();
-        windowRect.moveTopLeft(QPoint(x, y));
+        windowRect.moveTopLeft(m_zone->m_area.topLeft() + QPoint(x, y));
         constrainPosition(windowRect);
         const QPoint pos = windowRect.topLeft();
 
