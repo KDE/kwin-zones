@@ -23,6 +23,8 @@
 
 #include <kwinzonescompositorlogging.h>
 
+#include <algorithm>
+
 #ifdef KWIN_ZONES_SUPPORT_VIRTUAL_DESKTOP_STRUTS
 #include <virtualdesktops.h>
 #endif
@@ -30,6 +32,8 @@
 namespace KWin
 {
 static const int s_version = 1;
+// Minimum length of an item's frame that has to stay within its zone on each axis
+static const int s_minVisibleSize = 64;
 class ExtZoneV1Interface;
 
 class ExtZoneItemV1Interface : public QObject, public QtWaylandServer::xx_zone_item_v1
@@ -68,17 +72,16 @@ public:
 
     void constrainPosition(QRect &windowRect) const
     {
-        if (windowRect.left() > m_zone->m_area.right()) {
-            windowRect.moveLeft(m_zone->m_area.right() - windowRect.width());
+        // An item may overhang its zone on any side, but a part of its frame
+        // always has to remain within the zone, so the user can still reach it.
+        const QRect &area = m_zone->m_area;
+        if (area.width() > 0) {
+            const int visible = std::min({s_minVisibleSize, windowRect.width(), area.width()});
+            windowRect.moveLeft(std::clamp(windowRect.left(), area.left() - windowRect.width() + visible, area.left() + area.width() - visible));
         }
-        if (windowRect.right() < m_zone->m_area.left()) {
-            windowRect.moveLeft(m_zone->m_area.left());
-        }
-        if (windowRect.top() > m_zone->m_area.bottom()) {
-            windowRect.moveTop(m_zone->m_area.bottom() - windowRect.height());
-        }
-        if (windowRect.bottom() < m_zone->m_area.top()) {
-            windowRect.moveTop(m_zone->m_area.top());
+        if (area.height() > 0) {
+            const int visible = std::min({s_minVisibleSize, windowRect.height(), area.height()});
+            windowRect.moveTop(std::clamp(windowRect.top(), area.top() - windowRect.height() + visible, area.top() + area.height() - visible));
         }
     }
 
@@ -109,9 +112,42 @@ public:
         }
     }
 
+    /**
+     * Send the initial frame extents and position of the item in its zone.
+     *
+     * A window that is not mapped yet has no decoration and was not placed,
+     * so the events are delayed until its geometry is meaningful. Otherwise
+     * clients would receive bogus placeholder values first.
+     */
+    void sendInitialState()
+    {
+        disconnect(m_initialStateDelay);
+        auto w = window();
+        if (!w || !m_zone) {
+            return;
+        }
+        if (!w->readyForPainting()) {
+            m_initialStateDelay = connect(w, &Window::readyForPaintingChanged, this, &ExtZoneItemV1Interface::sendInitialState, Qt::SingleShotConnection);
+            return;
+        }
+
+        m_currentMargins = w->frameMargins();
+        send_frame_extents(m_currentMargins.top(), m_currentMargins.bottom(), m_currentMargins.left(), m_currentMargins.right());
+
+        const QPointF pos = w->frameGeometry().topLeft() - m_zone->m_area.topLeft();
+        send_position(pos.x(), pos.y());
+        m_initialStateSent = true;
+    }
+
+    void resetInitialState()
+    {
+        disconnect(m_initialStateDelay);
+        m_initialStateSent = false;
+    }
+
     void refreshPosition()
     {
-        if (!m_zone) {
+        if (!m_zone || !m_initialStateSent) {
             return;
         }
         auto w = window();
@@ -133,6 +169,8 @@ public:
     ExtZoneV1Interface* m_zone = nullptr;
     QMargins m_currentMargins;
     QMetaObject::Connection m_setPositionDelay;
+    QMetaObject::Connection m_initialStateDelay;
+    bool m_initialStateSent = false;
 };
 
 
@@ -145,6 +183,7 @@ void ExtZoneV1Interface::xx_zone_v1_remove_item(Resource* resource, struct ::wl_
         return;
     }
     w->m_zone = nullptr;
+    w->resetInitialState();
     send_item_left(resource->handle, item);
     StackingUpdatesBlocker blocker(workspace());
     for (auto item : m_items)
@@ -202,15 +241,8 @@ void ExtZoneV1Interface::setThisZone(wl_resource* item)
         }
     }
 
-    auto window = w->window();
-    if (window)
-    {
-        w->m_currentMargins = window->frameMargins();
-        w->send_frame_extents(w->m_currentMargins.top(), w->m_currentMargins.bottom(), w->m_currentMargins.left(), w->m_currentMargins.right());
-
-        const QPointF pos = window->frameGeometry().topLeft() - m_area.topLeft();
-        w->send_position(pos.x(), pos.y());
-    }
+    w->resetInitialState();
+    w->sendInitialState();
 }
 
 class ExtZoneManagerV1Interface : public QObject, public QtWaylandServer::xx_zone_manager_v1
